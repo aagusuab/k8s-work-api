@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	json2 "encoding/json"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -21,11 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
-	testing2 "k8s.io/client-go/testing"
+	testingclient "k8s.io/client-go/testing"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -61,12 +60,6 @@ var (
 			MinReadySeconds: 5,
 		},
 	}
-	testPod = v1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "core/v1",
-		},
-	}
 	rawTestDeployment, _ = json.Marshal(testDeployment)
 	testManifest         = workv1alpha1.Manifest{RawExtension: runtime.RawExtension{
 		Raw: rawTestDeployment,
@@ -92,9 +85,14 @@ func (m testMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.
 
 func TestApplyManifest(t *testing.T) {
 	// Manifests
-	testInvalidYaml := []byte(getRandomString())
-	rawInvalidResource, _ := json.Marshal(testInvalidYaml)
-	rawMissingResource, _ := json.Marshal(testPod)
+	rawInvalidResource, _ := json.Marshal([]byte(getRandomString()))
+	rawMissingResource, _ := json.Marshal(
+		v1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Pod",
+				APIVersion: "core/v1",
+			},
+		})
 	InvalidManifest := workv1alpha1.Manifest{RawExtension: runtime.RawExtension{
 		Raw: rawInvalidResource,
 	}}
@@ -112,17 +110,17 @@ func TestApplyManifest(t *testing.T) {
 
 	// DynamicClients
 	clientFailDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	clientFailDynamicClient.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	clientFailDynamicClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("Failed to apply an unstructrued object")
 	})
 
 	testCases := map[string]struct {
-		reconciler ApplyWorkReconciler
-		ml         []workv1alpha1.Manifest
-		generation int64
-		updated    bool
-		wantGvr    schema.GroupVersionResource
-		wantErr    error
+		reconciler   ApplyWorkReconciler
+		manifestList []workv1alpha1.Manifest
+		generation   int64
+		updated      bool
+		wantGvr      schema.GroupVersionResource
+		wantErr      error
 	}{
 		"manifest is in proper format/ happy path": {
 			reconciler: ApplyWorkReconciler{
@@ -131,11 +129,11 @@ func TestApplyManifest(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 			},
-			ml:         append([]workv1alpha1.Manifest{}, testManifest),
-			generation: 0,
-			updated:    true,
-			wantGvr:    expectedGvr,
-			wantErr:    nil,
+			manifestList: append([]workv1alpha1.Manifest{}, testManifest),
+			generation:   0,
+			updated:      true,
+			wantGvr:      expectedGvr,
+			wantErr:      nil,
 		},
 		"manifest has incorrect syntax/ decode fail": {
 			reconciler: ApplyWorkReconciler{
@@ -144,11 +142,11 @@ func TestApplyManifest(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 			},
-			ml:         append([]workv1alpha1.Manifest{}, InvalidManifest),
-			generation: 0,
-			updated:    false,
-			wantGvr:    emptyGvr,
-			wantErr: &json2.UnmarshalTypeError{
+			manifestList: append([]workv1alpha1.Manifest{}, InvalidManifest),
+			generation:   0,
+			updated:      false,
+			wantGvr:      emptyGvr,
+			wantErr: &json.UnmarshalTypeError{
 				Value: "string",
 				Type:  reflect.TypeOf(map[string]interface{}{}),
 			},
@@ -160,11 +158,11 @@ func TestApplyManifest(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 			},
-			ml:         append([]workv1alpha1.Manifest{}, MissingManifest),
-			generation: 0,
-			updated:    false,
-			wantGvr:    emptyGvr,
-			wantErr:    errors.New("failed to find gvr from restmapping: test error: mapping does not exist."),
+			manifestList: append([]workv1alpha1.Manifest{}, MissingManifest),
+			generation:   0,
+			updated:      false,
+			wantGvr:      emptyGvr,
+			wantErr:      errors.New("failed to find gvr from restmapping: test error: mapping does not exist."),
 		},
 		"manifest is in proper format/ should fail applyUnstructured": {
 			reconciler: ApplyWorkReconciler{
@@ -173,17 +171,17 @@ func TestApplyManifest(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 			},
-			ml:         append([]workv1alpha1.Manifest{}, testManifest),
-			generation: 0,
-			updated:    false,
-			wantGvr:    expectedGvr,
-			wantErr:    errors.New("Failed to apply an unstructrued object"),
+			manifestList: append([]workv1alpha1.Manifest{}, testManifest),
+			generation:   0,
+			updated:      false,
+			wantGvr:      expectedGvr,
+			wantErr:      errors.New("Failed to apply an unstructrued object"),
 		},
 	}
 
 	for testName, testCase := range testCases {
 		t.Run(testName, func(t *testing.T) {
-			resultList := testCase.reconciler.applyManifests(context.Background(), testCase.ml, ownerRef)
+			resultList := testCase.reconciler.applyManifests(context.Background(), testCase.manifestList, ownerRef)
 			for _, result := range resultList {
 				if testCase.wantErr != nil {
 					assert.Containsf(t, result.err.Error(), testCase.wantErr.Error(), "Incorrect error for Testcase %s", testName)
@@ -207,15 +205,15 @@ func TestApplyUnstructured(t *testing.T) {
 	diffSpecObj, diffSpecDynamicClient, diffSpecHash := createObjAndDynamicClient(testManifestDiffSpec.Raw)
 
 	patchFailClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	patchFailClient.PrependReactor("patch", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	patchFailClient.PrependReactor("patch", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("patch failed")
 	})
-	patchFailClient.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	patchFailClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, diffSpecObj.DeepCopy(), nil
 	})
 
 	dynamicClientNotFound := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	dynamicClientNotFound.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	dynamicClientNotFound.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return false,
 			nil,
 			&apierrors.StatusError{
@@ -226,7 +224,7 @@ func TestApplyUnstructured(t *testing.T) {
 	})
 
 	dynamicClientError := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	dynamicClientError.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	dynamicClientError.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true,
 			nil,
 			errors.New("client error")
@@ -450,7 +448,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	clientFailDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	clientFailDynamicClient.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	clientFailDynamicClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("Failed to apply an unstructrued object")
 	})
 
@@ -622,15 +620,15 @@ func createObjAndDynamicClient(rawManifest []byte) (unstructured.Unstructured, d
 	validSpecHash, _ := generateSpecHash(unstructuredObj)
 	unstructuredObj.SetAnnotations(map[string]string{"multicluster.x-k8s.io/spec-hash": validSpecHash})
 	dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	dynamicClient.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	dynamicClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, unstructuredObj, nil
 	})
-	dynamicClient.PrependReactor("patch", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+	dynamicClient.PrependReactor("patch", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
 		return true, unstructuredObj, nil
 	})
 	return *unstructuredObj, dynamicClient, validSpecHash
 }
 
 func getRandomString() string {
-	return utilrand.String(10)
+	return rand.String(10)
 }
