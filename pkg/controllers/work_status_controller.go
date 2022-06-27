@@ -39,7 +39,10 @@ import (
 )
 
 const (
-	ReasonReconcileSuccess = "WorkStatusReconciliation Success"
+	EventReasonFetchWorkFailed          = "FetchWorkFailed"
+	EventReasonDeleteStaleWorkFailed    = "DeleteStaleWorkFailed"
+	EventReasonUpdateAppliedWorkFailed  = "UpdateAppliedWorkFailed"
+	EventReasonUpdateAppliedWorkSucceed = "UpdateAppliedWorkSuccess"
 )
 
 // WorkStatusReconciler reconciles a Work object when its status changes
@@ -67,6 +70,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	klog.InfoS("work status reconcile loop triggered", "item", req.NamespacedName)
 	work, appliedWork, err := r.fetchWorks(ctx, req.NamespacedName)
 	if err != nil {
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonFetchWorkFailed, "Fetching Work or Applied Work failed for %s", work.GetName())
 		return ctrl.Result{}, err
 	}
 	// work has been garbage collected
@@ -78,6 +82,8 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	newRes, staleRes := r.calculateNewAppliedWork(work, appliedWork)
 	if err = r.deleteStaleWork(ctx, staleRes); err != nil {
 		klog.ErrorS(err, "failed to delete all the stale work", "work", req.NamespacedName)
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonDeleteStaleWorkFailed, "Deleting stale work %s failed", work.GetName())
+
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
 	}
@@ -86,10 +92,11 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	appliedWork.Status.AppliedResources = newRes
 	if err = r.spokeClient.Status().Update(ctx, appliedWork, &client.UpdateOptions{}); err != nil {
 		klog.ErrorS(err, "update appliedWork status failed", "appliedWork", appliedWork.GetName())
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonUpdateAppliedWorkFailed, "Updating AppliedWork failed for %s", appliedWork.GetName())
 		return ctrl.Result{}, err
 	}
 
-	r.recorder.Event(work, v1.EventTypeNormal, ReasonReconcileSuccess, "work reconciliation success")
+	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updating AppliedWork failed for %s", appliedWork.GetName())
 	return ctrl.Result{}, nil
 }
 
