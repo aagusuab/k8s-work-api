@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,7 +45,11 @@ import (
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
-const workFieldManagerName = "work-api-agent"
+const (
+	workFieldManagerName    = "work-api-agent"
+	ReasonReconcileSuccess  = "WorkReconcileSuccess"
+	ReasonWorkObjectPatched = "WorkObjectPatched"
+)
 
 // ApplyWorkReconciler reconciles a Work object
 type ApplyWorkReconciler struct {
@@ -51,6 +57,7 @@ type ApplyWorkReconciler struct {
 	spokeDynamicClient dynamic.Interface
 	spokeClient        client.Client
 	restMapper         meta.RESTMapper
+	recorder           record.EventRecorder
 	concurrency        int
 }
 
@@ -140,6 +147,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
 
+	r.recorder.Event(work, v1.EventTypeNormal, ReasonReconcileSuccess, "work reconciliation success")
 	return ctrl.Result{}, nil
 }
 
@@ -240,6 +248,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 			return nil, false, err
 		}
 		klog.V(5).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
+		r.recorder.Event(workObj, v1.EventTypeNormal, ReasonWorkObjectPatched, "work object patched")
 		return actual, true, err
 	}
 
