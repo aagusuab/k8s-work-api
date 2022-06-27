@@ -19,12 +19,14 @@ package controllers
 import (
 	"context"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -36,13 +38,18 @@ import (
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
+const (
+	ReasonReconcileSuccess = "WorkStatusReconciliation Success"
+)
+
 // WorkStatusReconciler reconciles a Work object when its status changes
 type WorkStatusReconciler struct {
 	appliedResourceTracker
+	recorder    record.EventRecorder
 	concurrency int
 }
 
-func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, concurrency int) *WorkStatusReconciler {
+func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
 	return &WorkStatusReconciler{
 		appliedResourceTracker: appliedResourceTracker{
 			hubClient:          hubClient,
@@ -50,6 +57,7 @@ func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client,
 			spokeDynamicClient: spokeDynamicClient,
 			restMapper:         restMapper,
 		},
+		recorder:    recorder,
 		concurrency: concurrency,
 	}
 }
@@ -81,6 +89,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
+	r.recorder.Event(work, v1.EventTypeNormal, ReasonReconcileSuccess, "work reconciliation success")
 	return ctrl.Result{}, nil
 }
 
