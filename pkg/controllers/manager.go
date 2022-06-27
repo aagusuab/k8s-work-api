@@ -75,8 +75,7 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 		klog.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
-	recorder := hubMgr.GetEventRecorderFor("work_status_controller")
-	if err = newWorkStatusReconciler(hubMgr.GetClient(), spokeClient, spokeDynamicClient, restMapper, recorder, maxWorkConcurrency).
+	if err = newWorkStatusReconciler(hubMgr.GetClient(), spokeClient, spokeDynamicClient, restMapper, hubMgr.GetEventRecorderFor("work_status_controller"), maxWorkConcurrency).
 		SetupWithManager(hubMgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WorkStatus")
 		return err
