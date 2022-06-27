@@ -46,9 +46,9 @@ import (
 )
 
 const (
-	workFieldManagerName    = "work-api-agent"
-	ReasonReconcileSuccess  = "WorkReconcileSuccess"
-	ReasonWorkObjectPatched = "WorkObjectPatched"
+	workFieldManagerName         = "work-api-agent"
+	eventReasonReconcileSuccess  = "WorkReconcileSuccess"
+	eventReasonWorkObjectPatched = "WorkObjectPatched"
 )
 
 // ApplyWorkReconciler reconciles a Work object
@@ -147,7 +147,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
 
-	r.recorder.Event(work, v1.EventTypeNormal, ReasonReconcileSuccess, "work reconciliation success")
+	r.recorder.Event(work, v1.EventTypeNormal, eventReasonReconcileSuccess, "work reconciliation success")
 	return ctrl.Result{}, nil
 }
 
@@ -248,7 +248,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 			return nil, false, err
 		}
 		klog.V(5).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
-		r.recorder.Event(workObj, v1.EventTypeNormal, ReasonWorkObjectPatched, "work object patched")
+		r.recorder.Event(workObj, v1.EventTypeNormal, eventReasonWorkObjectPatched, "work object patched")
 		return actual, true, err
 	}
 
