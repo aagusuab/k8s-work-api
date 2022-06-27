@@ -46,9 +46,13 @@ import (
 )
 
 const (
-	workFieldManagerName         = "work-api-agent"
-	eventReasonReconcileSuccess  = "WorkReconcileSuccess"
-	eventReasonWorkObjectPatched = "WorkObjectPatched"
+	workFieldManagerName                = "work-api-agent"
+	eventReasonAppliedWorkDoesNotExist  = "AppliedWorkDoesNotExist"
+	eventReasonNewManifestApplied       = "NewManifestApplied"
+	eventReasonReconciliationAggregated = "WorkReconciliationAggregated"
+	eventReasonUpdateWorkStatusFailed   = "UpdateWorkStatusFailed"
+	eventReasonWorkResourcePatched      = "WorkResourcePatched"
+	eventReasonWorkResourcePatchFailed  = "WorkResourcePatchFailed"
 )
 
 // ApplyWorkReconciler reconciles a Work object
@@ -98,6 +102,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	appliedWork := &workv1alpha1.AppliedWork{}
 	if err := r.spokeClient.Get(ctx, types.NamespacedName{Name: req.Name}, appliedWork); err != nil {
 		klog.ErrorS(err, "failed to get the appliedWork", "name", req.Name)
+		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonAppliedWorkDoesNotExist, "Retrieving AppliedWork failed for Work %s", work.GetName())
 		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf("failed to get the appliedWork %s", req.Name))
 	}
 
@@ -139,15 +144,16 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 	if err != nil {
 		klog.ErrorS(err, "update work status failed", "work", req.NamespacedName)
+		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonUpdateWorkStatusFailed, "Updating Work %s failed", work.GetName())
 		errs = append(errs, err)
 	}
 
 	if len(errs) != 0 {
 		klog.InfoS("we didn't apply all the manifest works successfully, queue the next reconcile", "work", req.NamespacedName)
+		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonReconciliationAggregated, "Not all Manifest for Work %s were applied, queueing next reconciliation", work.GetName())
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
 
-	r.recorder.Event(work, v1.EventTypeNormal, eventReasonReconcileSuccess, "work reconciliation success")
 	return ctrl.Result{}, nil
 }
 
@@ -214,6 +220,8 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	if apierrors.IsNotFound(err) {
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(workObj.GetNamespace()).Create(
 			ctx, workObj, metav1.CreateOptions{FieldManager: workFieldManagerName})
+		r.recorder.Eventf(workObj, v1.EventTypeNormal, eventReasonNewManifestApplied, "Manifest Applied for Work %s", workObj.GetName())
+
 		return actual, true, err
 	}
 	if err != nil {
@@ -245,10 +253,12 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: workFieldManagerName})
 		if err != nil {
 			klog.ErrorS(err, "work object patched failed", "gvr", gvr, "obj", workObj.GetName())
+			r.recorder.Eventf(workObj, v1.EventTypeWarning, eventReasonWorkResourcePatchFailed, "work resource patch failed for %s", workObj.GetName())
+
 			return nil, false, err
 		}
 		klog.V(5).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
-		r.recorder.Event(workObj, v1.EventTypeNormal, eventReasonWorkObjectPatched, "work object patched")
+		r.recorder.Eventf(workObj, v1.EventTypeNormal, eventReasonWorkResourcePatched, "work resource %s patched", workObj.GetName())
 		return actual, true, err
 	}
 
