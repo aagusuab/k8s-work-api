@@ -208,7 +208,7 @@ var (
 		Describe("deleted from the Hub", func() {
 			BeforeEach(func() {
 				// Todo - Replace with Eventually.
-				time.Sleep(5 * time.Second) // Give time for AppliedWork to be created.
+				time.Sleep(10 * time.Second) // Give time for AppliedWork to be created.
 				// Grab the AppliedWork, so resource garbage collection can be verified.
 				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				Expect(getError).ToNot(HaveOccurred())
@@ -296,7 +296,7 @@ func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) 
 }
 func safeDeleteWork(work *workapi.Work) error {
 	// ToDo - Replace with proper Eventually.
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	_, getError = hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Get(context.Background(), work.Name, metav1.GetOptions{})
 	if getError == nil {
 		deleteError = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Delete(context.Background(), createdWork.Name, metav1.DeleteOptions{})
