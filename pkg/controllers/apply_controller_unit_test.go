@@ -578,7 +578,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				restMapper: testMapper{},
-				recorder:   utils.NewFakeRecorder(1),
+				recorder:   utils.NewFakeRecorder(2),
 			},
 			req:     req,
 			wantErr: errors.New("Failed to apply an unstructrued object"),

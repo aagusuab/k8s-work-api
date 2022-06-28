@@ -46,13 +46,15 @@ import (
 )
 
 const (
-	workFieldManagerName                = "work-api-agent"
-	eventReasonAppliedWorkDoesNotExist  = "AppliedWorkDoesNotExist"
-	eventReasonNewManifestApplied       = "NewManifestApplied"
-	eventReasonReconciliationAggregated = "WorkReconciliationAggregated"
-	eventReasonUpdateWorkStatusFailed   = "UpdateWorkStatusFailed"
-	eventReasonWorkResourcePatched      = "WorkResourcePatched"
-	eventReasonWorkResourcePatchFailed  = "WorkResourcePatchFailed"
+	workFieldManagerName                 = "work-api-agent"
+	eventReasonNewManifestApplied        = "NewManifestApplied"
+	eventReasonReconciliationAggregated  = "WorkReconciliationAggregated"
+	eventReasonResourceNotFound          = "ResourceNotFound"
+	eventReasonResourceNotOwnedByWorkAPI = "ResourceNotOwnedByWorkAPI"
+	eventReasonUpdateWorkStatusFailed    = "UpdateWorkStatusFailed"
+	eventReasonUpdateWorkStatusSuccess   = "UpdateWorkStatusSuccessful"
+	eventReasonWorkResourcePatched       = "WorkResourcePatched"
+	eventReasonWorkResourcePatchFailed   = "WorkResourcePatchFailed"
 )
 
 // ApplyWorkReconciler reconciles a Work object
@@ -102,7 +104,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	appliedWork := &workv1alpha1.AppliedWork{}
 	if err := r.spokeClient.Get(ctx, types.NamespacedName{Name: req.Name}, appliedWork); err != nil {
 		klog.ErrorS(err, "failed to get the appliedWork", "name", req.Name)
-		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonAppliedWorkDoesNotExist, "Retrieving AppliedWork failed for Work %s", work.GetName())
+		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonResourceNotFound, "AppliedWork not found for Work %s", work.GetName())
 		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf("failed to get the appliedWork %s", req.Name))
 	}
 
@@ -146,6 +148,8 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		klog.ErrorS(err, "update work status failed", "work", req.NamespacedName)
 		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonUpdateWorkStatusFailed, "Updating Work %s failed", work.GetName())
 		errs = append(errs, err)
+	} else {
+		r.recorder.Eventf(work, v1.EventTypeNormal, eventReasonUpdateWorkStatusSuccess, "Updating Work %s successful", work.GetName())
 	}
 
 	if len(errs) != 0 {
@@ -231,6 +235,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	if !hasSharedOwnerReference(curObj.GetOwnerReferences(), workObj.GetOwnerReferences()[0]) {
 		err = fmt.Errorf("object %s:%s is not owned by the work-api anymore", gvr, curObj.GetName())
 		klog.ErrorS(err, "Found an object that is not owned by the work-api")
+		r.recorder.Eventf(workObj, v1.EventTypeWarning, eventReasonResourceNotOwnedByWorkAPI, "Resource for %s not owned by the work api", workObj.GetName())
 		return nil, false, err
 	}
 
@@ -258,7 +263,8 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 			return nil, false, err
 		}
 		klog.V(5).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
-		r.recorder.Eventf(workObj, v1.EventTypeNormal, eventReasonWorkResourcePatched, "work resource %s patched", workObj.GetName())
+		r.recorder.Eventf(workObj, v1.EventTypeWarning, eventReasonWorkResourcePatched, "work resource patch successful for %s", workObj.GetName())
+
 		return actual, true, err
 	}
 
