@@ -39,9 +39,7 @@ import (
 )
 
 const (
-	EventReasonFetchWorkFailed          = "FetchWorkFailed"
 	EventReasonDeleteStaleWorkFailed    = "DeleteStaleWorkFailed"
-	EventReasonDeleteStaleWorkSuccess   = "DeleteStaleWorkSuccess"
 	EventReasonUpdateAppliedWorkFailed  = "UpdateAppliedWorkFailed"
 	EventReasonUpdateAppliedWorkSucceed = "UpdateAppliedWorkSuccess"
 )
@@ -71,7 +69,6 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	klog.InfoS("work status reconcile loop triggered", "item", req.NamespacedName)
 	work, appliedWork, err := r.fetchWorks(ctx, req.NamespacedName)
 	if err != nil {
-		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonFetchWorkFailed, "Fetching Work or Applied Work failed for %s", work.GetName())
 		return ctrl.Result{}, err
 	}
 	// work has been garbage collected
@@ -87,8 +84,6 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
-	} else {
-		r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonDeleteStaleWorkSuccess, "Deleting stale work %s succeeded", work.GetName())
 	}
 
 	// update the appliedWork with the new work
@@ -99,7 +94,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updating AppliedWork failed for %s", appliedWork.GetName())
+	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updating AppliedWork succeeded for %s", appliedWork.GetName())
 	return ctrl.Result{}, nil
 }
 
