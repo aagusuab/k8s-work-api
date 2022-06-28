@@ -41,6 +41,7 @@ import (
 const (
 	EventReasonFetchWorkFailed          = "FetchWorkFailed"
 	EventReasonDeleteStaleWorkFailed    = "DeleteStaleWorkFailed"
+	EventReasonDeleteStaleWorkSuccess   = "DeleteStaleWorkSuccess"
 	EventReasonUpdateAppliedWorkFailed  = "UpdateAppliedWorkFailed"
 	EventReasonUpdateAppliedWorkSucceed = "UpdateAppliedWorkSuccess"
 )
@@ -86,6 +87,8 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
+	} else {
+		r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonDeleteStaleWorkSuccess, "Deleting stale work %s succeeded", work.GetName())
 	}
 
 	// update the appliedWork with the new work
