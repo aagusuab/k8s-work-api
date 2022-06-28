@@ -208,7 +208,7 @@ var (
 		Describe("deleted from the Hub", func() {
 			BeforeEach(func() {
 				// Todo - Replace with Eventually.
-				time.Sleep(3 * time.Second) // Give time for AppliedWork to be created.
+				time.Sleep(5 * time.Second) // Give time for AppliedWork to be created.
 				// Grab the AppliedWork, so resource garbage collection can be verified.
 				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				Expect(getError).ToNot(HaveOccurred())
