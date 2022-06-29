@@ -127,10 +127,7 @@ var _ = Describe("Work Status Controller", func() {
 					Resource: "ConfigMap",
 				}
 				_, err := dynamicClient.Resource(gvr).Namespace(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
-				if err != nil {
-					return true
-				}
-				return false
+				return err != nil
 			}, timeout, interval).Should(BeTrue())
 		})
 		It("Resource is deleted from the AppliedResources of the AppliedWork", func() {
@@ -143,10 +140,7 @@ var _ = Describe("Work Status Controller", func() {
 			Eventually(func() bool {
 				currentAppliedWork, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
-				if len(currentAppliedWork.Status.AppliedResources) != 0 {
-					return true
-				}
-				return false
+				return len(currentAppliedWork.Status.AppliedResources) != 0
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
