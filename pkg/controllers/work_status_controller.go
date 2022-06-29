@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -39,9 +38,10 @@ import (
 )
 
 const (
-	EventReasonDeleteStaleWorkFailed    = "DeleteStaleWorkFailed"
-	EventReasonUpdateAppliedWorkFailed  = "UpdateAppliedWorkFailed"
-	EventReasonUpdateAppliedWorkSucceed = "UpdateAppliedWorkSuccess"
+	EventReasonResourceUnsuccessfullyGarbageCollected = "ResourceUnsuccessfullyGarbageCollected"
+	EventReasonResourceSuccessfullyGarbageCollected   = "ResourceSuccessfullyGarbageCollected"
+	EventReasonUpdateAppliedWorkFailed                = "UpdateAppliedWorkFailed"
+	EventReasonUpdateAppliedWorkSucceed               = "UpdateAppliedWorkSuccess"
 )
 
 // WorkStatusReconciler reconciles a Work object when its status changes
@@ -80,21 +80,23 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	newRes, staleRes := r.calculateNewAppliedWork(work, appliedWork)
 	if err = r.deleteStaleWork(ctx, staleRes); err != nil {
 		klog.ErrorS(err, "failed to delete all the stale work", "work", req.NamespacedName)
-		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonDeleteStaleWorkFailed, "Deleting stale work %s failed", work.GetName())
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonResourceUnsuccessfullyGarbageCollected, "Resource unsuccessfully garbage collected for Work %s", work.GetName())
 
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
+	} else if len(staleRes) > 0 && err == nil {
+		r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonResourceSuccessfullyGarbageCollected, "Resource(s) successfully garbage collected for Work %s", work.GetName())
 	}
 
 	// update the appliedWork with the new work
 	appliedWork.Status.AppliedResources = newRes
 	if err = r.spokeClient.Status().Update(ctx, appliedWork, &client.UpdateOptions{}); err != nil {
 		klog.ErrorS(err, "update appliedWork status failed", "appliedWork", appliedWork.GetName())
-		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonUpdateAppliedWorkFailed, "Updating AppliedWork failed for %s", appliedWork.GetName())
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonUpdateAppliedWorkFailed, "Could not update AppliedWork %s", appliedWork.GetName())
 		return ctrl.Result{}, err
 	}
 
-	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updating AppliedWork succeeded for %s", appliedWork.GetName())
+	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updated AppliedWork %s", appliedWork.GetName())
 	return ctrl.Result{}, nil
 }
 
@@ -165,7 +167,6 @@ func (r *WorkStatusReconciler) deleteStaleWork(ctx context.Context, staleWorks [
 			klog.ErrorS(err, "failed to delete a stale work", "work", staleWork)
 			errs = append(errs, err)
 		}
-
 	}
 	return utilerrors.NewAggregate(errs)
 }
