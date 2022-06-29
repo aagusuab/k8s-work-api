@@ -40,8 +40,8 @@ import (
 const (
 	EventReasonResourceUnsuccessfullyGarbageCollected = "ResourceUnsuccessfullyGarbageCollected"
 	EventReasonResourceSuccessfullyGarbageCollected   = "ResourceSuccessfullyGarbageCollected"
-	EventReasonUpdateAppliedWorkFailed                = "UpdateAppliedWorkFailed"
-	EventReasonUpdateAppliedWorkSucceed               = "UpdateAppliedWorkSuccess"
+	EventReasonAppliedWorkUnsuccessfulUpdated         = "AppliedWorkUnsuccessfulUpdated"
+	EventReasonAppliedWorkSuccessfulUpdated           = "AppliedWorkSuccessfulUpdated"
 )
 
 // WorkStatusReconciler reconciles a Work object when its status changes
@@ -92,11 +92,11 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	appliedWork.Status.AppliedResources = newRes
 	if err = r.spokeClient.Status().Update(ctx, appliedWork, &client.UpdateOptions{}); err != nil {
 		klog.ErrorS(err, "update appliedWork status failed", "appliedWork", appliedWork.GetName())
-		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonUpdateAppliedWorkFailed, "Could not update AppliedWork %s", appliedWork.GetName())
+		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonAppliedWorkUnsuccessfulUpdated, "Could not update AppliedWork %s", appliedWork.GetName())
 		return ctrl.Result{}, err
 	}
 
-	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonUpdateAppliedWorkSucceed, "Updated AppliedWork %s", appliedWork.GetName())
+	r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonAppliedWorkSuccessfulUpdated, "Updated AppliedWork %s", appliedWork.GetName())
 	return ctrl.Result{}, nil
 }
 
