@@ -31,7 +31,7 @@ import (
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
-var _ = Describe("Work Status Controller", func() {
+var _ = Describe("Work Status Reconciler", func() {
 	var resourceName string
 	var resourceNamespace string
 	var workName string
@@ -97,11 +97,9 @@ var _ = Describe("Work Status Controller", func() {
 		Expect(createWorkErr).ToNot(HaveOccurred())
 
 		Eventually(func() bool {
-			appliedWorkObject, err2 := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
-			if err2 == nil {
-				return appliedWorkObject.Spec.WorkName == workName
-			}
-			return false
+			appliedWorkObject, _ := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+
+			return appliedWorkObject.Spec.WorkName == workName
 		}, timeout, interval).Should(BeTrue())
 	})
 
@@ -110,8 +108,9 @@ var _ = Describe("Work Status Controller", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("A Work object with manifests has been created", func() {
-		It("Resource was removed from the Work Status", func() {
+	Context("Receives a request where a Work's manifest condition does not contain the metadata of an"+
+		"existing AppliedResourceMeta", func() {
+		It("Should delete the resource from the spoke cluster", func() {
 			currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -127,9 +126,13 @@ var _ = Describe("Work Status Controller", func() {
 					Resource: "ConfigMap",
 				}
 				_, err := dynamicClient.Resource(gvr).Namespace(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
+
 				return err != nil
 			}, timeout, interval).Should(BeTrue())
 		})
+	})
+	Context("Receives a request where a Work's manifest condition exists, but there"+
+		" isn't a respective AppliedResourceMeta.", func() {
 		It("Resource is deleted from the AppliedResources of the AppliedWork", func() {
 			currentAppliedWork, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -140,7 +143,8 @@ var _ = Describe("Work Status Controller", func() {
 			Eventually(func() bool {
 				currentAppliedWork, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
-				return len(currentAppliedWork.Status.AppliedResources) != 0
+
+				return len(currentAppliedWork.Status.AppliedResources) > 0
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
