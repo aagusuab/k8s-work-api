@@ -85,6 +85,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
 	} else if len(staleRes) > 0 && err == nil {
+		// TODO: Specify which manifest was deleted.
 		r.recorder.Eventf(work, v1.EventTypeNormal, EventReasonResourceSuccessfullyGarbageCollected, "Resource(s) successfully garbage collected for Work %s", work.GetName())
 	}
 
