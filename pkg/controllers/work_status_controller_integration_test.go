@@ -104,12 +104,12 @@ var _ = Describe("Work Status Reconciler", func() {
 	})
 
 	AfterEach(func() {
+		// TODO: Ensure that all resources are being deleted.
 		err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), workNamespace, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("Receives a request where a Work's manifest condition does not contain the metadata of an"+
-		"existing AppliedResourceMeta", func() {
+	Context("Receives a request where a Work's manifest condition does not contain the metadata of an existing AppliedResourceMeta", func() {
 		It("Should delete the resource from the spoke cluster", func() {
 			currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
