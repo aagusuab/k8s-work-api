@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +31,7 @@ import (
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
-var _ = Describe("Work Reconciler", func() {
+var _ = Describe("work reconciler", func() {
 	var resourceName string
 	var resourceNamespace string
 	var workName string
@@ -113,7 +112,7 @@ var _ = Describe("Work Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("AppliedWork should have been created", func() {
+		It("should have been created AppliedWork", func() {
 			Eventually(func() bool {
 				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 				if err == nil {
@@ -123,7 +122,7 @@ var _ = Describe("Work Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("manifest is correctly applied", func() {
+		It("should have applied the resource manifest", func() {
 			Eventually(func() bool {
 				resource, err := k8sClient.CoreV1().ConfigMaps(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
 				if err == nil {
@@ -133,7 +132,7 @@ var _ = Describe("Work Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("manifest condition should be correctly saved", func() {
+		It("should save the conditions for the manifest", func() {
 			Eventually(func() bool {
 				currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
 				if err == nil {
@@ -147,7 +146,7 @@ var _ = Describe("Work Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("appliedResourceMeta should be correctly saved", func() {
+		It("should save applied resource meta on the applied work status", func() {
 			Eventually(func() bool {
 				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 				if err == nil {
@@ -161,8 +160,8 @@ var _ = Describe("Work Reconciler", func() {
 		})
 	})
 
-	Context("New Work with manifests that depends on each other was reconciled", func() {
-		It("All manifests should be created eventually", func() {
+	Context("receives a work with manifests that depends on each other", func() {
+		It("should create all resources eventually", func() {
 			testResourceNamespaceName := utilrand.String(5)
 			testResourceNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -221,8 +220,8 @@ var _ = Describe("Work Reconciler", func() {
 		})
 	})
 
-	Context("Existing Work is being updated", func() {
-		It("Resources regarding Work should be updated", func() {
+	Context("updating existing work", func() {
+		It("should update the resources", func() {
 			cm := corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
@@ -251,7 +250,7 @@ var _ = Describe("Work Reconciler", func() {
 			_, err = workClient.MulticlusterV1alpha1().Works(workNamespace).Update(context.Background(), newWork, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Work Status", func() {
+			By("work status", func() {
 				Eventually(func() bool {
 					currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
 					if err == nil {
@@ -267,7 +266,7 @@ var _ = Describe("Work Reconciler", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 
-			By("Applied Manifest", func() {
+			By("created resources", func() {
 				Eventually(func() bool {
 					configMap, err := k8sClient.CoreV1().ConfigMaps(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
 					if err == nil {
