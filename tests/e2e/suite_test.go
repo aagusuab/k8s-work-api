@@ -18,15 +18,15 @@ package e2e
 
 import (
 	"embed"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -35,10 +35,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	workclientset "sigs.k8s.io/work-api/pkg/client/clientset/versioned"
 )
 
 var (
@@ -48,9 +47,8 @@ var (
 	hubWorkClient workclientset.Interface
 
 	spokeApiExtensionClient *apiextension.Clientset
-	spokeDynamicClient      dynamic.Interface
 	spokeKubeClient         kubernetes.Interface
-	spokeWorkClient         workclientset.Interface
+	spokeDynamicClient      dynamic.Interface
 
 	//go:embed manifests
 	testManifestFiles embed.FS
@@ -84,7 +82,11 @@ var _ = ginkgo.BeforeSuite(func() {
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	hubWorkClient, err = workclientset.NewForConfig(restConfig)
+	hubWorkClient, err = client.New(restConfig, client.Options{
+		Scheme: runtime.NewScheme(),
+	})
+
+	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeApiExtensionClient, err = apiextension.NewForConfig(restConfig)
@@ -93,7 +95,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	spokeDynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
+	spokeClient, err = client.New(restConfig, client.Options{
+		Scheme: runtime.NewScheme(),
+	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeWorkClient, err = workclientset.NewForConfig(restConfig)
