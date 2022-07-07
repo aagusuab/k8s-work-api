@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"sigs.k8s.io/work-api/pkg/utils"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
+	"sigs.k8s.io/work-api/pkg/utils"
 )
 
 var _ = Describe("work reconciler", func() {
@@ -140,7 +141,11 @@ var _ = Describe("work reconciler", func() {
 
 			By("status should have been saved for each manifests applied.")
 			Eventually(func() bool {
-				currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				currentWork := workv1alpha1.Work{}
+				err := workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &currentWork)
 				if err == nil {
 					if len(currentWork.Status.ManifestConditions) > 0 {
 						return currentWork.Status.ManifestConditions[0].Identifier.Name == resourceName &&
@@ -194,7 +199,11 @@ var _ = Describe("work reconciler", func() {
 
 				By("Work status should be updated")
 				Eventually(func() bool {
-					currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+					currentWork := workv1alpha1.Work{}
+					err = workClient.Get(context.Background(), types.NamespacedName{
+						Namespace: workNamespace,
+						Name:      workName,
+					}, &currentWork)
 					if err == nil {
 						if len(currentWork.Status.Conditions) > 0 && len(currentWork.Status.ManifestConditions) > 0 {
 							return currentWork.Status.ManifestConditions[0].Identifier.Name == cm.Name &&
