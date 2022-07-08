@@ -139,10 +139,7 @@ var _ = Describe("Work Status Reconciler", func() {
 				Expect(err).ToNot(HaveOccurred())
 				currentAppliedWork.Status.AppliedResources = []workv1alpha1.AppliedResourceMeta{}
 				_, err = workClient.MulticlusterV1alpha1().AppliedWorks().Update(context.Background(), currentAppliedWork, metav1.UpdateOptions{})
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			Eventually(func() bool {
