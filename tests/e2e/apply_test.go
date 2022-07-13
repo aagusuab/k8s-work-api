@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	"time"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
@@ -428,7 +429,7 @@ func decodeUnstructured(manifest workapi.Manifest) (*unstructured.Unstructured, 
 	unstructuredObj := &unstructured.Unstructured{}
 	err := unstructuredObj.UnmarshalJSON(manifest.Raw)
 
-	return unstructuredObj, err
+	=return unstructuredObj, err
 }
 func deleteWorkResource(namespace string, name string) error {
 	return hubWorkClient.MulticlusterV1alpha1().Works(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
