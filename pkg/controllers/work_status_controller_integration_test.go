@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -27,7 +26,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
