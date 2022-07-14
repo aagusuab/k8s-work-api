@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -42,6 +43,19 @@ var _ = Describe("Work creation", func() {
 		"with a CRD manifest",
 		[]string{
 			"manifests/test-crd.yaml",
+		})
+
+	WorkWithDuplicateManifestsContext(
+		"with a duplicate manifest: Configmap",
+		[]string{
+			"manifests/test-configmap.ns.yaml",
+			"manifests/test-configmap.ns.yaml",
+		})
+
+	MultipleWorkWithSameManifestContext(
+		"with two resource that has the same manifest: Deployment",
+		[]string{
+			"manifests/test-deployment.yaml",
 		})
 })
 
@@ -411,6 +425,162 @@ var WorkDeletedContext = func(description string, manifestFiles []string) bool {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 
+	})
+}
+
+var WorkWithDuplicateManifestsContext = func(description string, manifestFiles []string) bool {
+	return Context(description, func() {
+		var work *workapi.Work
+		var err error
+		var manifestDetails []manifestDetails
+
+		BeforeEach(func() {
+			manifestDetails = generateManifestDetails(manifestFiles)
+
+			work = createWorkObj(
+				utilrand.String(5),
+				"default",
+				manifestDetails,
+			)
+
+		})
+
+		AfterEach(func() {
+			err = deleteWorkResource(work.Namespace, work.Name)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("one of two manifests should be applied", func() {
+			By("creating the work resource")
+
+			work, err = createWorkResource(work)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verify that resource was created")
+			Eventually(func() error {
+				_, err = spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+
+			By("verify that applied status correctly represents the manifests")
+			Eventually(func() bool {
+				appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), work.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return len(appliedWork.Status.AppliedResources) == 1
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+			By("verify that work status conditions correctly represents the manifests")
+			Eventually(func() bool {
+				currentWork, err := spokeWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Get(context.Background(), work.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				numManifestApplied := 0
+				for _, status := range currentWork.Status.ManifestConditions {
+					if meta.IsStatusConditionTrue(status.Conditions, "Applied") {
+						numManifestApplied += 1
+					}
+				}
+				return numManifestApplied == 1
+			})
+
+			By("deleting the Work resource")
+			err = deleteWorkResource(work.Namespace, work.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verifying the resource was garbage collected")
+			Eventually(func() error {
+				err = spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.DeleteOptions{})
+
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+		})
+	})
+}
+
+var MultipleWorkWithSameManifestContext = func(description string, manifestFiles []string) bool {
+	return Context(description, func() {
+		var workOne *workapi.Work
+		var workTwo *workapi.Work
+		var err error
+		var manifestDetailsOne []manifestDetails
+		var manifestDetailsTwo []manifestDetails
+
+		BeforeEach(func() {
+			manifestDetailsOne = generateManifestDetails(manifestFiles)
+			manifestDetailsTwo = generateManifestDetails(manifestFiles)
+
+			workOne = createWorkObj(
+				utilrand.String(5),
+				"default",
+				manifestDetailsOne,
+			)
+
+			workTwo = createWorkObj(
+				utilrand.String(5),
+				"default",
+				manifestDetailsTwo)
+
+		})
+
+		AfterEach(func() {
+			err = deleteWorkResource(workOne.Namespace, workOne.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = deleteWorkResource(workTwo.Namespace, workTwo.Name)
+		})
+
+		It("should ignore the duplicate manifest", func() {
+
+			By("creating the work resources")
+			workOne, err = createWorkResource(workOne)
+			Expect(err).ToNot(HaveOccurred())
+
+			workTwo, err = createWorkResource(workTwo)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
+			Eventually(func() bool {
+				appliedWorkOne, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workOne.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				appliedWorkTwo, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workTwo.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 0
+
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+			By("Checking the work status of each works for verification")
+			Eventually(func() bool {
+				workOne, err := spokeWorkClient.MulticlusterV1alpha1().Works(workOne.Namespace).Get(context.Background(), workOne.Name, metav1.GetOptions{})
+				workTwo, err := spokeWorkClient.MulticlusterV1alpha1().Works(workTwo.Namespace).Get(context.Background(), workTwo.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				workOneCondition := meta.IsStatusConditionTrue(workOne.Status.ManifestConditions[0].Conditions, "Applied")
+				workTwoCondition := meta.IsStatusConditionTrue(workTwo.Status.ManifestConditions[0].Conditions, "Applied")
+				return (workOneCondition || workTwoCondition) && !(workOneCondition && workTwoCondition)
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+			By("verifying the resource was garbage collected")
+			Eventually(func() error {
+
+				return spokeKubeClient.AppsV1().Deployments(manifestDetailsOne[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetailsOne[0].ObjMeta.Name, metav1.DeleteOptions{})
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+			Eventually(func() error {
+
+				return spokeKubeClient.AppsV1().Deployments(manifestDetailsTwo[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetailsTwo[0].ObjMeta.Name, metav1.DeleteOptions{})
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+		})
 	})
 }
 
