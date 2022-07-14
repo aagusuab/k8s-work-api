@@ -562,6 +562,9 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 			By("Checking the work status of each works for verification")
 			Eventually(func() bool {
 				workOne, err := spokeWorkClient.MulticlusterV1alpha1().Works(workOne.Namespace).Get(context.Background(), workOne.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
 				workTwo, err := spokeWorkClient.MulticlusterV1alpha1().Works(workTwo.Namespace).Get(context.Background(), workTwo.Name, metav1.GetOptions{})
 				if err != nil {
 					return false
