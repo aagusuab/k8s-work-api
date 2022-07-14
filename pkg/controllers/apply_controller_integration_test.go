@@ -106,7 +106,7 @@ var _ = Describe("work reconciler", func() {
 	AfterEach(func() {
 		Expect(workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})).Should(Succeed())
 	})
-	Context("TestCreateWork", func() {
+	Context("Work Creation Process", func() {
 		It("create a new work object in the hub cluster", func() {
 			_, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
 			Expect(err).ShouldNot(HaveOccurred())
@@ -162,7 +162,7 @@ var _ = Describe("work reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		Context("TestUpdateWork", func() {
+		Context("Work is being updated", func() {
 			It("modify a manifest, then update the work object", func() {
 				By("creating a new work object")
 				createdWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
