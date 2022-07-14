@@ -19,6 +19,8 @@ package e2e
 import (
 	"embed"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"testing"
 
 	"github.com/onsi/ginkgo"
@@ -35,19 +37,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	workclientset "sigs.k8s.io/work-api/pkg/client/clientset/versioned"
 )
 
 var (
-	restConfig *rest.Config
-
-	hubWorkClient workclientset.Interface
-
+	restConfig              *rest.Config
+	hubWorkClient           client.Client
+	spokeClient             client.Client
 	spokeApiExtensionClient *apiextension.Clientset
-	spokeDynamicClient      dynamic.Interface
 	spokeKubeClient         kubernetes.Interface
-	spokeWorkClient         workclientset.Interface
+	spokeDynamicClient      dynamic.Interface
 
 	//go:embed testmanifests
 	testManifestFiles embed.FS
@@ -60,6 +58,7 @@ var (
 func init() {
 	utilruntime.Must(scheme.AddToScheme(genericScheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(genericScheme))
+	utilruntime.Must(v1alpha1.AddToScheme(genericScheme))
 }
 
 func TestE2e(t *testing.T) {
@@ -81,7 +80,12 @@ var _ = ginkgo.BeforeSuite(func() {
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	hubWorkClient, err = workclientset.NewForConfig(restConfig)
+	hubWorkClient, err = client.New(restConfig, client.Options{
+		Scheme: genericScheme,
+	})
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeApiExtensionClient, err = apiextension.NewForConfig(restConfig)
@@ -90,9 +94,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	spokeDynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
+	spokeClient, err = client.New(restConfig, client.Options{
+		Scheme: genericScheme,
+	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	spokeWorkClient, err = workclientset.NewForConfig(restConfig)
-	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 })
