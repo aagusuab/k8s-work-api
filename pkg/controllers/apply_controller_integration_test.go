@@ -105,16 +105,16 @@ var _ = Describe("work reconciler", func() {
 	})
 
 	AfterEach(func() {
-		Expect(workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})).Should(Succeed())
+		Expect(deleteWork(workNamespace, workName))
 	})
 	Context("Work Creation Process", func() {
 		It("create a new work object in the hub cluster", func() {
-			_, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
+			_, err := createWork(&work)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			By("work object should eventually contain a finalizer.")
 			Eventually(func() bool {
-				createdWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				createdWork, err := retrieveWork(workNamespace, workName)
 				if err != nil {
 					return false
 				}
@@ -123,7 +123,7 @@ var _ = Describe("work reconciler", func() {
 
 			By("corresponding appliedWork Resource should have been created.")
 			Eventually(func() bool {
-				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				appliedWorkObject, err := retrieveAppliedWork(workNamespace, workName)
 				if err != nil {
 					return false
 				}
@@ -158,7 +158,7 @@ var _ = Describe("work reconciler", func() {
 
 			By("AppliedResourceMeta details should have been created on AppliedWork's status")
 			Eventually(func() bool {
-				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				appliedWorkObject, err := retrieveAppliedWork(workNamespace, workName)
 				if err != nil {
 					return false
 				}
@@ -170,7 +170,7 @@ var _ = Describe("work reconciler", func() {
 		Context("Work is being updated", func() {
 			It("modify a manifest, then update the work object", func() {
 				By("creating a new work object")
-				createdWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
+				createdWork, err := createWork(&work)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				cm := corev1.ConfigMap{
@@ -194,7 +194,7 @@ var _ = Describe("work reconciler", func() {
 				}
 
 				By("Updating the work object")
-				_, err = workClient.MulticlusterV1alpha1().Works(workNamespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				_, err = updateWork(createdWork)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				By("Work status should be updated")
@@ -229,3 +229,45 @@ var _ = Describe("work reconciler", func() {
 		})
 	})
 })
+
+func createWork(work *workv1alpha1.Work) (*workv1alpha1.Work, error) {
+	err := workClient.Create(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+	return work, nil
+}
+
+func deleteWork(namespace string, name string) error {
+	return workClient.Delete(context.Background(), &workv1alpha1.Work{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}})
+}
+
+func retrieveAppliedWork(namespace string, name string) (*workv1alpha1.AppliedWork, error) {
+	appliedWork := workv1alpha1.AppliedWork{}
+	err := workClient.Get(context.Background(), getNamespacedKey(namespace, name), &appliedWork)
+	if err == nil {
+		return nil, err
+	}
+	return &appliedWork, nil
+}
+
+func retrieveWork(namespace string, name string) (*workv1alpha1.Work, error) {
+	work := workv1alpha1.Work{}
+	err := workClient.Get(context.Background(), getNamespacedKey(namespace, name), &work)
+	if err == nil {
+		return nil, err
+	}
+	return &work, nil
+}
+
+func updateWork(work *workv1alpha1.Work) (*workv1alpha1.Work, error) {
+	err := workClient.Update(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+	return work, nil
+}
+
+func getNamespacedKey(namespace string, name string) types.NamespacedName {
+	return types.NamespacedName{Namespace: namespace, Name: name}
+}

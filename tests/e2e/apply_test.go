@@ -478,6 +478,7 @@ func generateManifestDetails(manifestFiles []string) []manifestDetails {
 
 	return details
 }
+
 func retrieveWork(namespace string, name string) (*workapi.Work, error) {
 	work := workapi.Work{}
 	err := hubWorkClient.Get(context.Background(), getNamespacedKey(namespace, name), &work)
