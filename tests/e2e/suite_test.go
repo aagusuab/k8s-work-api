@@ -45,10 +45,10 @@ var (
 	restConfig *rest.Config
 	restMapper meta.RESTMapper
 
-	hubWorkClient workclientset.Interface
-
+	hubWorkClient           client.Client
 	spokeApiExtensionClient *apiextension.Clientset
 	spokeKubeClient         kubernetes.Interface
+	spokeWorkClient         client.Client
 	spokeDynamicClient      dynamic.Interface
 
 	//go:embed manifests
@@ -98,12 +98,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	spokeDynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	spokeClient, err = client.New(restConfig, client.Options{
+	spokeWorkClient, err = client.New(restConfig, client.Options{
 		Scheme: genericScheme,
 	})
-	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-
-	spokeWorkClient, err = workclientset.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	restMapper, err = apiutil.NewDynamicRESTMapper(restConfig, apiutil.WithLazyDiscovery)

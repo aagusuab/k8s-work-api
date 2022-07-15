@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -105,7 +106,7 @@ var WorkCreatedContext = func(description string, manifestFiles []string) bool {
 		It("should have created: a respective AppliedWork, and the resources specified in the Work's manifests", func() {
 			By("verifying an AppliedWork was created")
 			Eventually(func() error {
-				_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				_, err := retrieveAppliedWork(createdWork.Namespace, createdWork.Name)
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
@@ -196,7 +197,7 @@ var WorkUpdateWithDependencyContext = func(description string, initialManifestFi
 				Expect(err).ToNot(HaveOccurred())
 
 				createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, addedManifestDetails[0].Manifest, addedManifestDetails[1].Manifest)
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -263,7 +264,7 @@ var WorkUpdateWithModifiedManifestContext = func(description string, manifestFil
 				createdWork.Spec.Workload.Manifests[0].Object = obj
 				createdWork.Spec.Workload.Manifests[0].Raw = rawUpdatedManifest
 
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -309,20 +310,20 @@ var WorkUpdateWithReplacedManifestsContext = func(description string, originalMa
 		It("should have deleted the original Work's resources, and created new resources with the replaced manifests", func() {
 			By("getting the respective AppliedWork")
 			Eventually(func() int {
-				appliedWork, _ = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				appliedWork, _ = retrieveAppliedWork(createdWork.Namespace, createdWork.Name)
 
 				return len(appliedWork.Status.AppliedResources)
 			}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(createdWork.Spec.Workload.Manifests)))
 
 			By("updating the Work resource with replaced manifests")
 			Eventually(func() error {
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
 				createdWork.Spec.Workload.Manifests = nil
 				for _, mD := range replacedManifestDetails {
 					createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, mD.Manifest)
 				}
 
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -420,8 +421,13 @@ func createWorkObj(workName string, workNamespace string, manifestDetails []mani
 
 	return work
 }
+
 func createWorkResource(work *workapi.Work) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Create(context.Background(), work, metav1.CreateOptions{})
+	err := hubWorkClient.Create(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+	return work, nil
 }
 func decodeUnstructured(manifest workapi.Manifest) (*unstructured.Unstructured, error) {
 	unstructuredObj := &unstructured.Unstructured{}
@@ -430,7 +436,7 @@ func decodeUnstructured(manifest workapi.Manifest) (*unstructured.Unstructured, 
 	return unstructuredObj, err
 }
 func deleteWorkResource(namespace string, name string) error {
-	return hubWorkClient.MulticlusterV1alpha1().Works(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	return hubWorkClient.Delete(context.Background(), &workapi.Work{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}})
 }
 func generateManifestDetails(manifestFiles []string) []manifestDetails {
 	var details []manifestDetails
@@ -473,5 +479,31 @@ func generateManifestDetails(manifestFiles []string) []manifestDetails {
 	return details
 }
 func retrieveWork(namespace string, name string) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	work := workapi.Work{}
+	err := hubWorkClient.Get(context.Background(), getNamespacedKey(namespace, name), &work)
+	if err == nil {
+		return nil, err
+	}
+	return &work, nil
+}
+
+func updateWork(work *workapi.Work) (*workapi.Work, error) {
+	err := hubWorkClient.Update(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+	return work, nil
+}
+
+func retrieveAppliedWork(namespace string, name string) (*workapi.AppliedWork, error) {
+	appliedWork := workapi.AppliedWork{}
+	err := spokeWorkClient.Get(context.Background(), getNamespacedKey(namespace, name), &appliedWork)
+	if err == nil {
+		return nil, err
+	}
+	return &appliedWork, nil
+}
+
+func getNamespacedKey(namespace string, name string) types.NamespacedName {
+	return types.NamespacedName{Namespace: namespace, Name: name}
 }
