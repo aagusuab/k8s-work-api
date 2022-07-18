@@ -211,6 +211,9 @@ var WorkUpdateWithDependencyContext = func(description string, initialManifestFi
 		AfterEach(func() {
 			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
+
+			err = spokeKubeClient.CoreV1().ConfigMaps(addedManifestDetails[0].ObjMeta.Namespace).Delete(context.Background(), addedManifestDetails[0].ObjMeta.Name, metav1.DeleteOptions{})
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should have created the ConfigMap in the new namespace", func() {
@@ -546,11 +549,17 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 
 			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
 			Eventually(func() bool {
-				_, oneGetErr := retrieveAppliedWork(workOne.Name)
+				appliedWorkOne, err := retrieveAppliedWork(workOne.Name)
+				if err != nil {
+					return false
+				}
 
-				_, twoGetErr := retrieveAppliedWork(workTwo.Name)
+				appliedWorkTwo, err := retrieveAppliedWork(workTwo.Name)
+				if err != nil {
+					return false
+				}
 
-				return (oneGetErr == nil || twoGetErr == nil) && !(oneGetErr == nil && twoGetErr == nil)
+				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 0
 
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
