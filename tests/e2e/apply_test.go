@@ -45,14 +45,6 @@ var _ = Describe("Work creation", func() {
 			"manifests/test-crd.yaml",
 		})
 
-	WorkWithDuplicateManifestsContext(
-		"with a duplicate manifest: Configmap",
-		[]string{
-			"manifests/test-configmap.ns.yaml",
-			"manifests/test-configmap.ns.yaml",
-			"manifests/test-namespace.yaml",
-		})
-
 	MultipleWorkWithSameManifestContext(
 		"with two resource for the same resource: Deployment",
 		[]string{
@@ -429,79 +421,6 @@ var WorkDeletedContext = func(description string, manifestFiles []string) bool {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 
-	})
-}
-
-var WorkWithDuplicateManifestsContext = func(description string, manifestFiles []string) bool {
-	return Context(description, func() {
-		var work *workapi.Work
-		var err error
-		var manifestDetails []manifestDetails
-
-		BeforeEach(func() {
-			manifestDetails = generateManifestDetails(manifestFiles)
-
-			work = createWorkObj(
-				utilrand.String(5),
-				"default",
-				manifestDetails,
-			)
-
-		})
-
-		AfterEach(func() {
-			err = deleteWorkResource(work)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("Should result in only one unique resource", func() {
-			By("creating the work resource")
-
-			err = createWork(work)
-			Expect(err).ToNot(HaveOccurred())
-
-			By("verify that resource was created")
-			Eventually(func() error {
-				_, err = spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
-
-				return err
-			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-
-			//By("verify that only one copy of the manifest exists")
-			//Eventually(func() int {
-			//	list, err := spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).List(context.Background(), metav1.ListOptions{})
-			//	if err != nil {
-			//		return 0
-			//	}
-			//	return len(list.Items)
-			//}, eventuallyTimeout, eventuallyInterval).Should(Equal(1))
-
-			By("verify that work status conditions correctly represents the manifests")
-			Eventually(func() bool {
-				currentWork, err := retrieveWork(work.Namespace, work.Name)
-				if err != nil {
-					return false
-				}
-				numManifestApplied := 0
-				for _, status := range currentWork.Status.ManifestConditions {
-					if meta.IsStatusConditionTrue(status.Conditions, "Applied") {
-						numManifestApplied += 1
-					}
-				}
-				return numManifestApplied == 1
-			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
-
-			By("deleting the Work resource")
-			err = deleteWorkResource(work)
-			Expect(err).ToNot(HaveOccurred())
-
-			By("verifying the resource was garbage collected")
-			Eventually(func() error {
-				err = spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.DeleteOptions{})
-
-				return err
-			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-		})
 	})
 }
 
