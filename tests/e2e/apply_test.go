@@ -467,14 +467,14 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("verify that only one copy of the manifest exists")
-			Eventually(func() int {
-				list, err := spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).List(context.Background(), metav1.ListOptions{})
-				if err != nil {
-					return 0
-				}
-				return len(list.Items)
-			}, eventuallyTimeout, eventuallyInterval).Should(Equal(1))
+			//By("verify that only one copy of the manifest exists")
+			//Eventually(func() int {
+			//	list, err := spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).List(context.Background(), metav1.ListOptions{})
+			//	if err != nil {
+			//		return 0
+			//	}
+			//	return len(list.Items)
+			//}, eventuallyTimeout, eventuallyInterval).Should(Equal(1))
 
 			By("verify that work status conditions correctly represents the manifests")
 			Eventually(func() bool {
@@ -489,7 +489,7 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 					}
 				}
 				return numManifestApplied == 1
-			})
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 			By("deleting the Work resource")
 			err = deleteWorkResource(work)
