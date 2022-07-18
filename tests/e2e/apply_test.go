@@ -473,7 +473,8 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 				if err != nil {
 					return false
 				}
-
+				println("the length is")
+				println(len(appliedWork.Status.AppliedResources))
 				return len(appliedWork.Status.AppliedResources) == 1
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
@@ -559,9 +560,9 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 				if err != nil {
 					return false
 				}
+				println(appliedWorkOne.Status.AppliedResources[0].Name)
 
-				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 0
-
+				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 1
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 			By("Checking the work status of each works for verification")
