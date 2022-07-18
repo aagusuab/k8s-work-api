@@ -473,7 +473,7 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 				if err != nil {
 					return 0
 				}
-				return list.Size()
+				return len(list.Items)
 			}, eventuallyTimeout, eventuallyInterval).Should(Equal(1))
 
 			By("verify that work status conditions correctly represents the manifests")
