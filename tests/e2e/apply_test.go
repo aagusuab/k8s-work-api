@@ -53,7 +53,7 @@ var _ = Describe("Work creation", func() {
 		})
 
 	MultipleWorkWithSameManifestContext(
-		"with two resource that has the same manifest: Deployment",
+		"with two resource for the same resource: Deployment",
 		[]string{
 			"manifests/test-deployment.yaml",
 		})
@@ -446,14 +446,14 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(work.Namespace, work.Name)
+			err = deleteWorkResource(work)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("one of two manifests should be applied", func() {
+		It("Should result in only one unique resource", func() {
 			By("creating the work resource")
 
-			work, err = createWorkResource(work)
+			err = createWork(work)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that resource was created")
@@ -465,7 +465,7 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 
 			By("verify that applied status correctly represents the manifests")
 			Eventually(func() bool {
-				appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), work.Name, metav1.GetOptions{})
+				appliedWork, err := retrieveAppliedWork(work.Name)
 				if err != nil {
 					return false
 				}
@@ -475,7 +475,7 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 
 			By("verify that work status conditions correctly represents the manifests")
 			Eventually(func() bool {
-				currentWork, err := spokeWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Get(context.Background(), work.Name, metav1.GetOptions{})
+				currentWork, err := retrieveWork(work.Namespace, work.Name)
 				if err != nil {
 					return false
 				}
@@ -489,7 +489,7 @@ var WorkWithDuplicateManifestsContext = func(description string, manifestFiles [
 			})
 
 			By("deleting the Work resource")
-			err = deleteWorkResource(work.Namespace, work.Name)
+			err = deleteWorkResource(work)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verifying the resource was garbage collected")
@@ -528,44 +528,45 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(workOne.Namespace, workOne.Name)
+			err = deleteWorkResource(workOne)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = deleteWorkResource(workTwo.Namespace, workTwo.Name)
+			err = deleteWorkResource(workTwo)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should ignore the duplicate manifest", func() {
 
 			By("creating the work resources")
-			workOne, err = createWorkResource(workOne)
+			err = createWork(workOne)
 			Expect(err).ToNot(HaveOccurred())
 
-			workTwo, err = createWorkResource(workTwo)
+			err = createWork(workTwo)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
 			Eventually(func() bool {
-				appliedWorkOne, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workOne.Name, metav1.GetOptions{})
+				appliedWorkOne, err := retrieveAppliedWork(workOne.Name)
 				if err != nil {
 					return false
 				}
 
-				appliedWorkTwo, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workTwo.Name, metav1.GetOptions{})
+				appliedWorkTwo, err := retrieveAppliedWork(workTwo.Name)
 				if err != nil {
 					return false
 				}
 
-				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 0
+				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 1
 
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 			By("Checking the work status of each works for verification")
 			Eventually(func() bool {
-				workOne, err := spokeWorkClient.MulticlusterV1alpha1().Works(workOne.Namespace).Get(context.Background(), workOne.Name, metav1.GetOptions{})
+				workOne, err := retrieveWork(workOne.Namespace, workOne.Name)
 				if err != nil {
 					return false
 				}
-				workTwo, err := spokeWorkClient.MulticlusterV1alpha1().Works(workTwo.Namespace).Get(context.Background(), workTwo.Name, metav1.GetOptions{})
+				workTwo, err := retrieveWork(workTwo.Namespace, workTwo.Name)
 				if err != nil {
 					return false
 				}
