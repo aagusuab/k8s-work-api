@@ -546,17 +546,11 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 
 			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
 			Eventually(func() bool {
-				appliedWorkOne, err := retrieveAppliedWork(workOne.Name)
-				if err != nil {
-					return false
-				}
+				_, oneGetErr := retrieveAppliedWork(workOne.Name)
 
-				appliedWorkTwo, err := retrieveAppliedWork(workTwo.Name)
-				if err != nil {
-					return false
-				}
+				_, twoGetErr := retrieveAppliedWork(workTwo.Name)
 
-				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 1
+				return (oneGetErr == nil || twoGetErr == nil) && !(oneGetErr == nil && twoGetErr == nil)
 
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
