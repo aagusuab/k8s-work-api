@@ -66,7 +66,7 @@ func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client,
 
 // Reconcile implement the control loop logic for Work Status.
 func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS("work status reconcile loop triggered", "item", req.NamespacedName)
+	klog.V(1).InfoS("work status reconcile loop triggered", "Work", req.NamespacedName)
 	work, appliedWork, err := r.fetchWorks(ctx, req.NamespacedName)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -79,7 +79,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// from now on both work objects should exist
 	newRes, staleRes := r.calculateNewAppliedWork(work, appliedWork)
 	if err = r.deleteStaleWork(ctx, staleRes); err != nil {
-		klog.ErrorS(err, "failed to delete all the stale work", "work", req.NamespacedName)
+		klog.ErrorS(err, "failed to delete all the stale work", "Work", req.NamespacedName)
 		r.recorder.Eventf(work, v1.EventTypeWarning, EventReasonResourceUnsuccessfullyGarbageCollected, "Resource unsuccessfully garbage collected for Work %s", work.GetName())
 
 		// we can't proceed to update the applied
@@ -165,7 +165,7 @@ func (r *WorkStatusReconciler) deleteStaleWork(ctx context.Context, staleWorks [
 		err := r.spokeDynamicClient.Resource(gvr).Namespace(staleWork.Namespace).
 			Delete(ctx, staleWork.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsGone(err) {
-			klog.ErrorS(err, "failed to delete a stale work", "work", staleWork)
+			klog.ErrorS(err, "failed to delete a stale work", "Work", staleWork)
 			errs = append(errs, err)
 		}
 	}

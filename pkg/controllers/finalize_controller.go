@@ -59,7 +59,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	klog.InfoS("Finalize work reconcile loop triggered", "item", req.NamespacedName)
+	klog.V(1).InfoS("Finalize work reconcile loop triggered", "item", req.NamespacedName)
 
 	// cleanup finalizer and resources
 	if !work.DeletionTimestamp.IsZero() {
@@ -82,7 +82,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	klog.InfoS("appliedWork finalizer does not exist yet, we will create it", "item", req.NamespacedName)
+	klog.V(4).InfoS("appliedWork finalizer does not exist yet, we will create it", "Work", req.NamespacedName)
 	appliedWork = &workv1alpha1.AppliedWork{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.Name,
@@ -120,6 +120,7 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		klog.V(5).InfoS("Begin deleting stale resources for work %s", work.Name)
 		err = r.spokeClient.Delete(ctx, &appliedWork, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
 			klog.ErrorS(err, "failed to delete the applied Work", work.Name)
@@ -127,9 +128,10 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 		}
 
 		r.recorder.Event(work, corev1.EventTypeNormal, eventReasonAppliedWorkDeleted, "AppliedWork was deleted")
-		klog.Infof("Removed the applied Work %s", work.Name)
+		klog.V(5).InfoS("Removed the applied Work %s", work.Name)
 
 		controllerutil.RemoveFinalizer(work, workFinalizer)
+		klog.V(5).InfoS("Finalizer removed for Work %s", work.Name)
 		r.recorder.Event(work, corev1.EventTypeNormal, eventReasonFinalizerRemoved, "Work resource's finalizer removed: "+workFinalizer)
 	}
 

@@ -39,7 +39,7 @@ type AppliedWorkReconciler struct {
 
 // Reconcile implement the control loop logic for AppliedWork object.
 func (r *AppliedWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS("applied work reconcile loop triggered", "item", req.NamespacedName)
+	klog.V(1).InfoS("applied work reconcile loop triggered", "item", req.NamespacedName)
 	nsWorkName := req.NamespacedName
 	nsWorkName.Namespace = r.clusterNameSpace
 	_, appliedWork, err := r.fetchWorks(ctx, nsWorkName)
@@ -53,7 +53,7 @@ func (r *AppliedWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	_, err = r.collectDisappearedWorks(ctx, appliedWork)
 	if err != nil {
-		klog.ErrorS(err, "failed to delete all the stale work", "work", req.NamespacedName)
+		klog.ErrorS(err, "failed to delete all the stale work", "Work", req.NamespacedName)
 		// we can't proceed to update the applied
 		return ctrl.Result{}, err
 	}
@@ -77,20 +77,20 @@ func (r *AppliedWorkReconciler) collectDisappearedWorks(
 		obj, err := r.spokeDynamicClient.Resource(gvr).Namespace(resourceMeta.Namespace).Get(ctx, resourceMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				klog.InfoS("found a disappeared work", "work", resourceMeta)
+				klog.V(5).InfoS("found a disappeared work", "Work", resourceMeta)
 				disappearedWorks = append(disappearedWorks, resourceMeta)
 			} else {
-				klog.ErrorS(err, "failed to get a work", "work", resourceMeta)
+				klog.ErrorS(err, "failed to get a work", "Work", resourceMeta)
 				errs = append(errs, err)
 			}
 		} else {
 			if resourceMeta.UID != obj.GetUID() {
 				workUIDChanged = true
 				if len(resourceMeta.UID) != 0 {
-					klog.InfoS("found a re-created work", "work",
+					klog.V(5).InfoS("found a re-created work", "Work",
 						resourceMeta, "old UID", resourceMeta.UID, "new UID", obj.GetUID())
 				} else {
-					klog.InfoS("attach to a newly created work", "work",
+					klog.V(3).InfoS("attach to a newly created work", "Work",
 						resourceMeta, "new UID", obj.GetUID())
 				}
 			}
@@ -102,7 +102,7 @@ func (r *AppliedWorkReconciler) collectDisappearedWorks(
 
 	if workUIDChanged && len(errs) == 0 {
 		appliedWork.Status.AppliedResources = newRes
-		klog.InfoS("Update an appliedWork status with new object UID", "work", appliedWork.GetName())
+		klog.V(3).InfoS("Update an appliedWork status with new object UID", "Work", appliedWork.GetName())
 		if err := r.spokeClient.Status().Update(ctx, appliedWork, &client.UpdateOptions{}); err != nil {
 			klog.ErrorS(err, "update appliedWork status failed", "appliedWork", appliedWork.GetName())
 			return disappearedWorks, err

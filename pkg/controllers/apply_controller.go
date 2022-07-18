@@ -76,27 +76,29 @@ type applyResult struct {
 
 // Reconcile implement the control loop logic for Work object.
 func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS("work reconcile loop triggered", "item", req.NamespacedName)
+	klog.V(1).InfoS("work reconcile loop triggered", "item", req.NamespacedName)
 
 	work := &workv1alpha1.Work{}
 	err := r.client.Get(ctx, req.NamespacedName, work)
 	switch {
 	case apierrors.IsNotFound(err):
+		klog.V(5).InfoS("work %s not found in namespace %s", req.NamespacedName.Name, req.NamespacedName.Namespace)
 		return ctrl.Result{}, nil
 	case err != nil:
+		klog.ErrorS(err, "Error during Get operation on Work %s.", req.NamespacedName.Name)
 		return ctrl.Result{}, err
 	}
 
 	// do nothing if the finalizer is not present
 	// it ensures all maintained resources will be cleaned once work is deleted
 	if !controllerutil.ContainsFinalizer(work, workFinalizer) {
-		klog.InfoS("the work has no finalizer yet, the work finalizer will create it", "item", req.NamespacedName)
+		klog.V(4).InfoS("the work has no finalizer yet, the work finalizer will create it", "Work", req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
 	// leave the finalizer to clean up
 	if !work.DeletionTimestamp.IsZero() {
-		klog.InfoS("the work is being deleted, the work finalizer will garbage collect the resource", "item", req.NamespacedName)
+		klog.V(4).InfoS("the work is being deleted, the work finalizer will garbage collect the resource", "Work", req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
@@ -145,15 +147,16 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 	if err != nil {
-		klog.ErrorS(err, "update work status failed", "work", req.NamespacedName)
+		klog.ErrorS(err, "update work status failed", "Work", req.NamespacedName)
 		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonUpdateWorkStatusFailed, "Updating Work %s failed", work.GetName())
 		errs = append(errs, err)
 	} else {
+		klog.V(3).InfoS("update work status succeeded", "Work", req.NamespacedName)
 		r.recorder.Eventf(work, v1.EventTypeNormal, eventReasonUpdateWorkStatusSuccess, "Updating Work %s successful", work.GetName())
 	}
 
 	if len(errs) != 0 {
-		klog.InfoS("we didn't apply all the manifest works successfully, queue the next reconcile", "work", req.NamespacedName)
+		klog.V(5).InfoS("we didn't apply all the manifest works successfully, queue the next reconcile", "Work", req.NamespacedName)
 		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonReconciliationAggregated, "Not all Manifest for Work %s were applied, queueing next reconciliation", work.GetName())
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
@@ -180,9 +183,9 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
 				if result.updated {
-					klog.V(5).InfoS("applied an unstructrued object", "gvr", gvr, "obj", obj.GetName(), "new observedGeneration", result.generation)
+					klog.V(3).InfoS("applied an unstructrued object", "gvr", gvr, "obj", obj.GetName(), "new observedGeneration", result.generation)
 				} else {
-					klog.V(8).InfoS("object spec has not changed", "gvr", gvr, "obj", obj.GetName())
+					klog.V(5).InfoS("object spec has not changed", "gvr", gvr, "obj", obj.GetName())
 				}
 			} else {
 				klog.ErrorS(err, "Failed to apply an unstructrued object", "gvr", gvr, "obj", rawObj.GetName())
@@ -262,7 +265,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 
 			return nil, false, err
 		}
-		klog.V(5).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
+		klog.V(3).InfoS("work object patched", "gvr", gvr, "obj", workObj.GetName())
 		r.recorder.Eventf(workObj, v1.EventTypeWarning, eventReasonWorkResourcePatched, "work resource patch successful for %s", workObj.GetName())
 
 		return actual, true, err
