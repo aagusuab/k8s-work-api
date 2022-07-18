@@ -50,6 +50,7 @@ var _ = Describe("Work creation", func() {
 		[]string{
 			"manifests/test-configmap.ns.yaml",
 			"manifests/test-configmap.ns.yaml",
+			"manifests/test-namespace.yaml",
 		})
 
 	MultipleWorkWithSameManifestContext(
