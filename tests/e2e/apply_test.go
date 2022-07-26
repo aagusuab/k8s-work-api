@@ -467,20 +467,20 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 			err = createWork(workTwo)
 			Expect(err).ToNot(HaveOccurred())
 
+			appliedWorkOne := &workapi.AppliedWork{}
+			appliedWorkTwo := &workapi.AppliedWork{}
 			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
 			Eventually(func() bool {
-				appliedWorkOne, err := retrieveAppliedWork(workOne.Name)
-				if err != nil {
-					return false
-				}
-
-				appliedWorkTwo, err := retrieveAppliedWork(workTwo.Name)
-				if err != nil {
-					return false
-				}
-
-				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 1
+				appliedWorkOne, err = retrieveAppliedWork(workOne.Name)
+				return err == nil
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+			Eventually(func() bool {
+				appliedWorkTwo, err = retrieveAppliedWork(workTwo.Name)
+				return err == nil
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+			Expect(len(appliedWorkOne.Status.AppliedResources) + len(appliedWorkTwo.Status.AppliedResources)).To(Equal(1))
 
 			By("Checking the work status of each works for verification")
 			Eventually(func() bool {
