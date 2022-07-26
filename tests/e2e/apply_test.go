@@ -26,7 +26,7 @@ type manifestDetails struct {
 }
 
 const (
-	eventuallyTimeout    = 30 // seconds
+	eventuallyTimeout    = 60 // seconds
 	eventuallyInterval   = 1  // seconds
 	defaultWorkNamespace = "default"
 )
@@ -467,20 +467,20 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 			err = createWork(workTwo)
 			Expect(err).ToNot(HaveOccurred())
 
-			appliedWorkOne := &workapi.AppliedWork{}
-			appliedWorkTwo := &workapi.AppliedWork{}
 			By("Checking the Applied Work status of each to see if one of the manifest is abandoned.")
 			Eventually(func() bool {
-				appliedWorkOne, err = retrieveAppliedWork(workOne.Name)
-				return err == nil
-			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+				appliedWorkOne, err := retrieveAppliedWork(workOne.Name)
+				if err != nil {
+					return false
+				}
 
-			Eventually(func() bool {
-				appliedWorkTwo, err = retrieveAppliedWork(workTwo.Name)
-				return err == nil
-			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+				appliedWorkTwo, err := retrieveAppliedWork(workTwo.Name)
+				if err != nil {
+					return false
+				}
 
-			Expect(len(appliedWorkOne.Status.AppliedResources) + len(appliedWorkTwo.Status.AppliedResources)).To(Equal(1))
+				return len(appliedWorkOne.Status.AppliedResources)+len(appliedWorkTwo.Status.AppliedResources) == 1
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 			By("Checking the work status of each works for verification")
 			Eventually(func() bool {
