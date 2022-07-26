@@ -126,11 +126,7 @@ var _ = Describe("Work Status Reconciler", func() {
 			currentWork.Status.ManifestConditions = []workv1alpha1.ManifestCondition{}
 
 			Eventually(func() bool {
-				err := workClient.Update(context.Background(), &currentWork)
-				if err != nil {
-					return false
-				}
-				return true
+				return workClient.Update(context.Background(), &currentWork) == nil
 			}, timeout, interval).Should(BeTrue())
 
 			Eventually(func() bool {
