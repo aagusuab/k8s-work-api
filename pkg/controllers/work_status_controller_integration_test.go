@@ -125,9 +125,9 @@ var _ = Describe("Work Status Reconciler", func() {
 
 			currentWork.Status.ManifestConditions = []workv1alpha1.ManifestCondition{}
 
-			Eventually(func() bool {
-				return workClient.Update(context.Background(), &currentWork) == nil
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return workClient.Update(context.Background(), &currentWork)
+			}, timeout, interval).Should(BeNil())
 
 			Eventually(func() bool {
 				gvr := schema.GroupVersionResource{
