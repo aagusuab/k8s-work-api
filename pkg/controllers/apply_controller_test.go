@@ -104,25 +104,14 @@ var _ = Describe("Work Controller", func() {
 					return err
 				}
 				if len(resultWork.Status.ManifestConditions) != 1 {
-					println(len(resultWork.Status.ManifestConditions))
 					return fmt.Errorf("Expect the 1 manifest condition is updated")
 				}
 
 				if !meta.IsStatusConditionTrue(resultWork.Status.ManifestConditions[0].Conditions, "Applied") {
-					println("ManifestConditions")
-					for _, cond := range resultWork.Status.ManifestConditions[0].Conditions {
-						println(cond.Type)
-						println(cond.Status)
-					}
 					return fmt.Errorf("Exepect condition status of the manifest to be true")
 				}
 
 				if !meta.IsStatusConditionTrue(resultWork.Status.Conditions, "Applied") {
-					println("Status Conditions")
-					for _, cond := range resultWork.Status.Conditions {
-						println(cond.Type)
-						println(cond.Status)
-					}
 					return fmt.Errorf("Exepect condition status of the work to be true")
 				}
 
