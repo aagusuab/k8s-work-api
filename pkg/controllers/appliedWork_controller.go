@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"sigs.k8s.io/work-api/pkg/utils"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,28 +42,9 @@ func (r *AppliedWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	klog.InfoS("applied work reconcile loop triggered", "item", req.NamespacedName)
 	nsWorkName := req.NamespacedName
 	nsWorkName.Namespace = r.clusterNameSpace
-	work, appliedWork, err := r.fetchWorks(ctx, nsWorkName)
+	_, appliedWork, err := r.fetchWorks(ctx, nsWorkName)
 	if err != nil {
-		if work != nil && appliedWork == nil {
-			klog.V(5).InfoS("AppliedWork is missing for work %s/%s, when it should exists. Creating New AppliedWork:", req.Name, req.Namespace)
-			appliedWork = &workapi.AppliedWork{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: req.Name,
-				},
-				Spec: workapi.AppliedWorkSpec{
-					WorkName:      req.Name,
-					WorkNamespace: req.Namespace,
-				},
-			}
-			err = r.spokeClient.Create(ctx, appliedWork)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				// if this conflicts, we'll simply try again later
-				klog.ErrorS(err, utils.MessageResourceCreateFailed, "AppliedWork", req.Name)
-				return ctrl.Result{}, err
-			}
-		} else {
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, err
 	}
 	// work has been garbage collected, stop the periodic check if it's gone
 	if appliedWork == nil {

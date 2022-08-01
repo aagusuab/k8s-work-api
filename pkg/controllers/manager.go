@@ -33,8 +33,6 @@ const (
 	workFinalizer      = "multicluster.x-k8s.io/work-cleanup"
 	specHashAnnotation = "multicluster.x-k8s.io/spec-hash"
 
-	clusterNamespace = "default"
-
 	ConditionTypeApplied = "Applied"
 
 	// number of concurrent reconcile loop for work
@@ -98,19 +96,6 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 		client:      hubMgr.GetClient(),
 		recorder:    hubMgr.GetEventRecorderFor("WorkFinalizer_controller"),
 		spokeClient: spokeClient,
-	}).SetupWithManager(hubMgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "WorkFinalize")
-		return err
-	}
-
-	if err = (&AppliedWorkReconciler{
-		appliedResourceTracker: appliedResourceTracker{
-			hubClient:          hubMgr.GetClient(),
-			spokeClient:        spokeClient,
-			spokeDynamicClient: spokeDynamicClient,
-			restMapper:         restMapper,
-		},
-		clusterNameSpace: clusterNamespace,
 	}).SetupWithManager(hubMgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WorkFinalize")
 		return err

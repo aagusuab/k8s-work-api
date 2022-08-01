@@ -66,20 +66,18 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return r.garbageCollectAppliedWork(ctx, work)
 	}
 
-	var appliedWork *workv1alpha1.AppliedWork
-	if controllerutil.ContainsFinalizer(work, workFinalizer) {
-		err = r.spokeClient.Get(ctx, req.NamespacedName, appliedWork)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				klog.ErrorS(err, messageAppliedWorkFinalizerNotFound, "AppliedWork", kLogObjRef.Name)
-			} else {
-				klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
-				return ctrl.Result{}, err
-			}
+	appliedWork := &workv1alpha1.AppliedWork{}
+	err = r.spokeClient.Get(ctx, req.NamespacedName, appliedWork)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			klog.ErrorS(err, messageAppliedWorkFinalizerNotFound, "AppliedWork", kLogObjRef.Name)
 		} else {
-			// everything is fine, don't need to do anything
-			return ctrl.Result{}, nil
+			klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
+			return ctrl.Result{}, err
 		}
+	} else {
+		// everything is fine, don't need to do anything
+		return ctrl.Result{}, nil
 	}
 
 	klog.InfoS(messageAppliedWorkFinalizerNotFound, "AppliedWork", kLogObjRef.Name)
@@ -100,8 +98,10 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	r.recorder.Event(appliedWork, corev1.EventTypeNormal, utils.EventReasonAppliedWorkCreated, utils.MessageResourceCreateSucceeded)
 
-	r.recorder.Event(work, corev1.EventTypeNormal, utils.EventReasonAppliedWorkCreated, "AppliedWork resource was created")
-	work.Finalizers = append(work.Finalizers, workFinalizer)
+	if controllerutil.ContainsFinalizer(work, workFinalizer) {
+		r.recorder.Event(work, corev1.EventTypeNormal, utils.EventReasonAppliedWorkCreated, "AppliedWork resource was created")
+		work.Finalizers = append(work.Finalizers, workFinalizer)
+	}
 
 	if err = r.client.Update(ctx, work, &client.UpdateOptions{}); err == nil {
 		r.recorder.Eventf(
