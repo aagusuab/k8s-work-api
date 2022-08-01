@@ -626,7 +626,7 @@ func TestReconcile(t *testing.T) {
 			if testCase.wantErr != nil {
 				assert.Containsf(t, err.Error(), testCase.wantErr.Error(), "incorrect error for Testcase %s", testName)
 			} else {
-				assert.Equalf(t, false, ctrlResult.Requeue, "incorrect ctrlResult for Testcase %s", testName)
+				assert.Equal(t, ctrl.Result{RequeueAfter: time.Minute * 5}, ctrlResult, "incorrect ctrlResult for Testcase %s", testName)
 			}
 		})
 	}
