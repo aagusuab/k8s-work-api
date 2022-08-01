@@ -72,24 +72,6 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if work == nil {
 		return ctrl.Result{}, nil
 	}
-	if appliedWork == nil {
-		klog.V(5).InfoS("AppliedWork is missing for work %s/%s, when it should exists. Creating New AppliedWork:", req.Name, req.Namespace)
-		appliedWork = &workapi.AppliedWork{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: req.Name,
-			},
-			Spec: workapi.AppliedWorkSpec{
-				WorkName:      req.Name,
-				WorkNamespace: req.Namespace,
-			},
-		}
-		err = r.spokeClient.Create(ctx, appliedWork)
-		if err != nil && !apierrors.IsAlreadyExists(err) {
-			// if this conflicts, we'll simply try again later
-			klog.ErrorS(err, utils.MessageResourceCreateFailed, "AppliedWork", req.Name)
-			return ctrl.Result{}, err
-		}
-	}
 	kLogObjRef := klog.KObj(work)
 
 	// from now on both work objects should exist
