@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
@@ -83,6 +83,14 @@ var _ = Describe("Work modification", func() {
 var _ = Describe("Work deletion", func() {
 	WorkDeletedContext(
 		"with a deletion request",
+		[]string{
+			"manifests/test-secret.yaml",
+		})
+})
+
+var _ = Describe("AppliedWork deletion", func() {
+	AppliedWorkDeletedContext(
+		"with manual deletion from the user",
 		[]string{
 			"manifests/test-secret.yaml",
 		})
@@ -506,6 +514,53 @@ var MultipleWorkWithSameManifestContext = func(description string, manifestFiles
 
 				return spokeKubeClient.AppsV1().Deployments(manifestDetailsTwo[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetailsTwo[0].ObjMeta.Name, metav1.DeleteOptions{})
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+		})
+	})
+}
+
+var AppliedWorkDeletedContext = func(description string, manifestFiles []string) bool {
+	return Context(description, func() {
+		var work *workapi.Work
+		var err error
+		var manifestDetails []manifestDetails
+
+		BeforeEach(func() {
+			manifestDetails = generateManifestDetails(manifestFiles)
+
+			work = createWorkObj(
+				utilrand.String(5),
+				defaultWorkNamespace,
+				manifestDetails,
+			)
+
+			By("creating the work resources")
+			err = createWork(work)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		AfterEach(func() {
+			err = deleteWorkResource(work)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		It("manually deleting AppliedWork should eventually bring it back", func() {
+
+			By("checking if AppliedWork is created")
+			appliedWork := &workapi.AppliedWork{}
+			Eventually(func() error {
+				appliedWork, err = retrieveAppliedWork(work.Name)
+				return err
+			}, eventuallyTimeout, eventuallyInterval).Should(BeNil())
+
+			By("deleting AppliedWork Resource Manually")
+			Expect(spokeClient.Delete(context.Background(), appliedWork, &client.DeleteOptions{})).To(BeNil())
+
+			Eventually(func() error {
+				_, err = retrieveAppliedWork(work.Name)
+				return err
+			}, eventuallyTimeout, eventuallyInterval).Should(BeNil())
 		})
 	})
 }
