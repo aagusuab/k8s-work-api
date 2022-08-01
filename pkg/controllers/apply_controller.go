@@ -483,6 +483,7 @@ func generateWorkAvailableStatusCondition(status metav1.ConditionStatus, observe
 		return metav1.Condition{
 			Type:               ConditionTypeAvailable,
 			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
 			Reason:             "AppliedWorkAvailable",
 			Message:            "This workload is available",
 			ObservedGeneration: observedGeneration,
@@ -492,6 +493,7 @@ func generateWorkAvailableStatusCondition(status metav1.ConditionStatus, observe
 	return metav1.Condition{
 		Type:               ConditionTypeAvailable,
 		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
 		Reason:             "AppliedWorkFailed",
 		Message:            "This workload is not fully available",
 		ObservedGeneration: observedGeneration,
