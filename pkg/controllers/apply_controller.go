@@ -455,6 +455,7 @@ func generateWorkAppliedStatusCondition(manifestConditions []workv1alpha1.Manife
 			return metav1.Condition{
 				Type:               ConditionTypeApplied,
 				Status:             metav1.ConditionFalse,
+				LastTransitionTime: metav1.Now(),
 				Reason:             "AppliedWorkFailed",
 				Message:            "Failed to apply work",
 				ObservedGeneration: observedGeneration,
@@ -465,6 +466,7 @@ func generateWorkAppliedStatusCondition(manifestConditions []workv1alpha1.Manife
 	return metav1.Condition{
 		Type:               ConditionTypeApplied,
 		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
 		Reason:             "AppliedWorkComplete",
 		Message:            "Apply work complete",
 		ObservedGeneration: observedGeneration,
