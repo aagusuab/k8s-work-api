@@ -476,8 +476,6 @@ func generateWorkAppliedStatusCondition(manifestConditions []workv1alpha1.Manife
 	}
 }
 
-// generateWorkAppliedStatusCondition generate appied status condition for work.
-// If one of the manifests is applied failed on the spoke, the applied status condition of the work is false.
 func generateWorkAvailableStatusCondition(status metav1.ConditionStatus, observedGeneration int64) metav1.Condition {
 	if status == metav1.ConditionTrue {
 		return metav1.Condition{
