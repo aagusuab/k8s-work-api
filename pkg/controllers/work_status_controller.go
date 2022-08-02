@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -45,6 +47,7 @@ type WorkStatusReconciler struct {
 	appliedResourceTracker
 	recorder    record.EventRecorder
 	concurrency int
+	cancel      context.CancelFunc
 }
 
 func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
@@ -193,6 +196,32 @@ func (r *WorkStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		For(&workapi.Work{}, builder.WithPredicates(UpdateOnlyPredicate{}, predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
+}
+
+// SetupUnmanagedController sets up an unmanaged controller
+func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) context.CancelFunc {
+	r.recorder = mgr.GetEventRecorderFor("work_status_controller")
+	c, err := controller.NewUnmanaged("work_status_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: r.concurrency})
+	if err != nil {
+		klog.ErrorS(err, "unable to create work status controller")
+		return nil
+	}
+
+	if err := c.Watch(&source.Kind{Type: &workapi.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
+		klog.ErrorS(err, "unable to watch works")
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-mgr.Elected()
+		if err := c.Start(ctx); err != nil {
+			klog.ErrorS(err, "cannot run work status controller")
+		}
+	}()
+	r.cancel = cancel
+	return r.cancel
 }
 
 // We only need to process the update event

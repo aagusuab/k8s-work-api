@@ -21,6 +21,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"time"
 
 	"github.com/pkg/errors"
@@ -59,6 +61,7 @@ type ApplyWorkReconciler struct {
 	restMapper         meta.RESTMapper
 	recorder           record.EventRecorder
 	concurrency        int
+	cancel             context.CancelFunc
 }
 
 // applyResult contains the result of a manifest being applied.
@@ -302,6 +305,32 @@ func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
+}
+
+// SetupUnmanagedController sets up an unmanaged controller
+func (r *ApplyWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) context.CancelFunc {
+	r.recorder = mgr.GetEventRecorderFor("work_controller")
+	c, err := controller.NewUnmanaged("work_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: 3})
+	if err != nil {
+		klog.ErrorS(err, "unable to create work controller")
+		return nil
+	}
+
+	if err := c.Watch(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
+		klog.ErrorS(err, "unable to watch works")
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-mgr.Elected()
+		if err := c.Start(ctx); err != nil {
+			klog.ErrorS(err, "cannot run work controller")
+		}
+	}()
+	r.cancel = cancel
+	return r.cancel
 }
 
 // Generates a hash of the spec annotation from an unstructured object.
