@@ -61,7 +61,17 @@ type ApplyWorkReconciler struct {
 	restMapper         meta.RESTMapper
 	recorder           record.EventRecorder
 	concurrency        int
-	cancel             context.CancelFunc
+}
+
+func NewWorkController(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *ApplyWorkReconciler {
+	return &ApplyWorkReconciler{
+		client:             hubClient,
+		spokeDynamicClient: spokeDynamicClient,
+		spokeClient:        spokeClient,
+		restMapper:         restMapper,
+		recorder:           recorder,
+		concurrency:        concurrency,
+	}
 }
 
 // applyResult contains the result of a manifest being applied.
@@ -308,17 +318,17 @@ func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // SetupUnmanagedController sets up an unmanaged controller
-func (r *ApplyWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) context.CancelFunc {
+func (r *ApplyWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) (context.CancelFunc, error) {
 	r.recorder = mgr.GetEventRecorderFor("work_controller")
 	c, err := controller.NewUnmanaged("work_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: 3})
 	if err != nil {
 		klog.ErrorS(err, "unable to create work controller")
-		return nil
+		return nil, err
 	}
 
 	if err := c.Watch(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
 		klog.ErrorS(err, "unable to watch works")
-		return nil
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -329,8 +339,7 @@ func (r *ApplyWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) context
 			klog.ErrorS(err, "cannot run work controller")
 		}
 	}()
-	r.cancel = cancel
-	return r.cancel
+	return cancel, nil
 }
 
 // Generates a hash of the spec annotation from an unstructured object.

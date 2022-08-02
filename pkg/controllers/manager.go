@@ -69,35 +69,35 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 		os.Exit(1)
 	}
 
-	if workControllerContext := newWorkStatusReconciler(
+	if _, err = NewWorkStatusReconciler(
 		hubMgr.GetClient(),
 		spokeClient,
 		spokeDynamicClient,
 		restMapper,
 		hubMgr.GetEventRecorderFor("work_status_controller"),
 		maxWorkConcurrency,
-	).SetupUnmanagedController(hubMgr); workControllerContext == nil {
+	).SetupUnmanagedController(hubMgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WorkStatus")
 		return err
 	}
 
-	if workControllerContext := (&ApplyWorkReconciler{
+	if _, err = (&ApplyWorkReconciler{
 		client:             hubMgr.GetClient(),
 		spokeDynamicClient: spokeDynamicClient,
 		spokeClient:        spokeClient,
 		restMapper:         restMapper,
 		recorder:           hubMgr.GetEventRecorderFor("work_controller"),
 		concurrency:        maxWorkConcurrency,
-	}).SetupUnmanagedController(hubMgr); workControllerContext == nil {
+	}).SetupUnmanagedController(hubMgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Work")
 		return err
 	}
 
-	if finalizerContext := (&FinalizeWorkReconciler{
+	if _, err = (&FinalizeWorkReconciler{
 		client:      hubMgr.GetClient(),
 		recorder:    hubMgr.GetEventRecorderFor("WorkFinalizer_controller"),
 		spokeClient: spokeClient,
-	}).SetupWithManager(hubMgr); finalizerContext == nil {
+	}).SetupUnmanagedController(hubMgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WorkFinalize")
 		return err
 	}

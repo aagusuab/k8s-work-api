@@ -47,7 +47,14 @@ type FinalizeWorkReconciler struct {
 	client      client.Client
 	spokeClient client.Client
 	recorder    record.EventRecorder
-	cancel      context.CancelFunc
+}
+
+func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder) *FinalizeWorkReconciler {
+	return &FinalizeWorkReconciler{
+		client:      hubClient,
+		spokeClient: spokeClient,
+		recorder:    recorder,
+	}
 }
 
 // Reconcile implement the control loop logic for finalizing Work object.
@@ -154,17 +161,17 @@ func (r *FinalizeWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // SetupUnmanagedController sets up an unmanaged controller
-func (r *FinalizeWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) context.CancelFunc {
+func (r *FinalizeWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) (context.CancelFunc, error) {
 	r.recorder = mgr.GetEventRecorderFor("WorkFinalizer_controller")
 	c, err := controller.NewUnmanaged("WorkFinalizer_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: 3})
 	if err != nil {
 		klog.ErrorS(err, "unable to create work finalizer controller")
-		return nil
+		return nil, err
 	}
 
 	if err := c.Watch(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestForObject{}, predicate.GenerationChangedPredicate{}); err != nil {
 		klog.ErrorS(err, "unable to watch works")
-		return nil
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -175,6 +182,5 @@ func (r *FinalizeWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) cont
 			klog.ErrorS(err, "cannot run finalizer controller")
 		}
 	}()
-	r.cancel = cancel
-	return r.cancel
+	return cancel, nil
 }

@@ -47,10 +47,9 @@ type WorkStatusReconciler struct {
 	appliedResourceTracker
 	recorder    record.EventRecorder
 	concurrency int
-	cancel      context.CancelFunc
 }
 
-func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
+func NewWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
 	return &WorkStatusReconciler{
 		appliedResourceTracker: appliedResourceTracker{
 			hubClient:          hubClient,
@@ -199,17 +198,17 @@ func (r *WorkStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // SetupUnmanagedController sets up an unmanaged controller
-func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) context.CancelFunc {
+func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) (context.CancelFunc, error) {
 	r.recorder = mgr.GetEventRecorderFor("work_status_controller")
 	c, err := controller.NewUnmanaged("work_status_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: r.concurrency})
 	if err != nil {
 		klog.ErrorS(err, "unable to create work status controller")
-		return nil
+		return nil, err
 	}
 
 	if err := c.Watch(&source.Kind{Type: &workapi.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
 		klog.ErrorS(err, "unable to watch works")
-		return nil
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -220,8 +219,7 @@ func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) contex
 			klog.ErrorS(err, "cannot run work status controller")
 		}
 	}()
-	r.cancel = cancel
-	return r.cancel
+	return cancel, nil
 }
 
 // We only need to process the update event
