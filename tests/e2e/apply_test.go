@@ -142,7 +142,6 @@ var WorkCreatedContext = func(description string, manifestFiles []string) bool {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
 			By("verifying that corresponding conditions were created")
-			By("Checking the work status of each works for verification")
 			Eventually(func() bool {
 				work, err := retrieveWork(createdWork.Namespace, createdWork.Name)
 				if err != nil {
