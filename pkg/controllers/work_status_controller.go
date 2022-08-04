@@ -18,9 +18,6 @@ package controllers
 
 import (
 	"context"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +46,7 @@ type WorkStatusReconciler struct {
 	concurrency int
 }
 
-func NewWorkStatusReconciler(hubClient client.Client, spokeClient client.Client, spokeDynamicClient dynamic.Interface, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
+func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
 	return &WorkStatusReconciler{
 		appliedResourceTracker: appliedResourceTracker{
 			hubClient:          hubClient,
@@ -195,31 +192,6 @@ func (r *WorkStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		For(&workapi.Work{}, builder.WithPredicates(UpdateOnlyPredicate{}, predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
-}
-
-// SetupUnmanagedController sets up an unmanaged controller
-func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) (context.CancelFunc, error) {
-	r.recorder = mgr.GetEventRecorderFor("work_status_controller")
-	c, err := controller.NewUnmanaged("work_status_controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: r.concurrency})
-	if err != nil {
-		klog.ErrorS(err, "unable to create work status controller")
-		return nil, err
-	}
-
-	if err := c.Watch(&source.Kind{Type: &workapi.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
-		klog.ErrorS(err, "unable to watch works")
-		return nil, err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		<-mgr.Elected()
-		if err := c.Start(ctx); err != nil {
-			klog.ErrorS(err, "cannot run work status controller")
-		}
-	}()
-	return cancel, nil
 }
 
 // We only need to process the update event
