@@ -61,7 +61,7 @@ type ApplyWorkReconciler struct {
 	concurrency        int
 }
 
-func NewWorkController(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *ApplyWorkReconciler {
+func NewApplyWorkReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *ApplyWorkReconciler {
 	return &ApplyWorkReconciler{
 		client:             hubClient,
 		spokeDynamicClient: spokeDynamicClient,
