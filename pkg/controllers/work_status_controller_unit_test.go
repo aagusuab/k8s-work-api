@@ -1,13 +1,14 @@
 package controllers
 
 import (
-	"testing"
-
+	"context"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
+	"testing"
 )
 
 // TestCalculateNewAppliedWork validates the calculation logic between the Work & AppliedWork resources.
@@ -75,6 +76,35 @@ func TestCalculateNewAppliedWork(t *testing.T) {
 			newRes, staleRes := tt.r.calculateNewAppliedWork(&tt.inputWork, &tt.inputAppliedWork)
 			assert.Equalf(t, tt.expectedNewRes, newRes, "Testcase %s: NewRes is different from what it should be.", testName)
 			assert.Equalf(t, tt.expectedStaleRes, staleRes, "Testcase %s: StaleRes is different from what it should be.", testName)
+		})
+	}
+}
+
+func TestStop(t *testing.T) {
+	testCases := map[string]struct {
+		reconciler WorkStatusReconciler
+		ctrlResult ctrl.Result
+		wantErr    error
+	}{
+		"controller is being stopped": {
+			reconciler: WorkStatusReconciler{
+				Stop: true,
+			},
+			ctrlResult: ctrl.Result{},
+			wantErr:    nil,
+		},
+	}
+
+	for testName, testCase := range testCases {
+		t.Run(testName, func(t *testing.T) {
+			ctrlResult, err := testCase.reconciler.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: "work" + rand.String(5),
+					Name:      "work" + rand.String(5),
+				},
+			})
+			assert.Equalf(t, testCase.ctrlResult, ctrlResult, "wrong ctrlResult for testcase %s", testName)
+			assert.Equal(t, testCase.wantErr, err)
 		})
 	}
 }

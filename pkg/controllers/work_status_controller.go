@@ -44,6 +44,7 @@ type WorkStatusReconciler struct {
 	appliedResourceTracker
 	recorder    record.EventRecorder
 	concurrency int
+	Stop        bool
 }
 
 func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *WorkStatusReconciler {
@@ -62,6 +63,11 @@ func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic
 // Reconcile implement the control loop logic for Work Status.
 func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.InfoS("Work Status controller reconcile loop triggered", "item", req.NamespacedName)
+
+	if r.Stop {
+		klog.InfoS("work status controller is being stopped, canceling reconciliation")
+		return ctrl.Result{}, nil
+	}
 
 	work, appliedWork, err := r.fetchWorks(ctx, req.NamespacedName)
 	if err != nil {

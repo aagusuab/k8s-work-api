@@ -44,6 +44,7 @@ type FinalizeWorkReconciler struct {
 	client      client.Client
 	spokeClient client.Client
 	recorder    record.EventRecorder
+	Stop        bool
 }
 
 func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder) *FinalizeWorkReconciler {
@@ -57,6 +58,11 @@ func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Clien
 // Reconcile implement the control loop logic for finalizing Work object.
 func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.InfoS("Work finalize controller reconcile loop triggered.", "item", req.NamespacedName)
+
+	if r.Stop {
+		klog.InfoS("work finalize controller is being stopped, canceling reconciliation")
+		return ctrl.Result{}, nil
+	}
 
 	work := &workv1alpha1.Work{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, work)

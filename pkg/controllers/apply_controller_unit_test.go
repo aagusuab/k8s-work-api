@@ -468,6 +468,19 @@ func TestReconcile(t *testing.T) {
 		wantErr    error
 		requeue    bool
 	}{
+		"controller is being stopped": {
+			reconciler: ApplyWorkReconciler{
+				client:             &test.MockClient{},
+				spokeDynamicClient: happyDynamicClient,
+				spokeClient:        &test.MockClient{},
+				restMapper:         testMapper{},
+				recorder:           utils.NewFakeRecorder(1),
+				Stop:               true,
+			},
+			req:     req,
+			wantErr: nil,
+			requeue: false,
+		},
 		"work cannot be retrieved, client failed due to client error": {
 			reconciler: ApplyWorkReconciler{
 				client: &test.MockClient{

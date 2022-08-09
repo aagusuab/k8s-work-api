@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/work-api/pkg/utils"
 	"testing"
 
@@ -45,6 +46,32 @@ func TestGarbageCollectAppliedWork(t *testing.T) {
 
 			assert.False(t, controllerutil.ContainsFinalizer(tt.tw.mockWork, workFinalizer), "The Work object still contains a finalizer, it should not.")
 			assert.NoError(t, err, "An error occurred but none was expected.")
+		})
+	}
+}
+
+func TestFinalizerReconcile(t *testing.T) {
+	tests := map[string]struct {
+		r              FinalizeWorkReconciler
+		expectedResult ctrl.Result
+		expectedError  error
+	}{
+		"Happy Path: AppliedWork deleted, work finalizer removed": {
+			r:              FinalizeWorkReconciler{Stop: true},
+			expectedResult: ctrl.Result{},
+			expectedError:  nil,
+		},
+	}
+	for testName, tt := range tests {
+		t.Run(testName, func(t *testing.T) {
+			ctrlResult, err := tt.r.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: "work" + rand.String(5),
+					Name:      "work" + rand.String(5),
+				},
+			})
+			assert.Equalf(t, tt.expectedResult, ctrlResult, "wrong ctrlResult for testcase %s", testName)
+			assert.Equal(t, tt.expectedError, err)
 		})
 	}
 }
