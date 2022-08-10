@@ -578,7 +578,7 @@ func setDegradedCondition(conditions []metav1.Condition) {
 	applied := appliedCondition != nil && appliedCondition.Status == metav1.ConditionFalse && (time.Now().Sub(appliedCondition.LastTransitionTime.Time)) > DegradedTime
 	availableCondition := meta.FindStatusCondition(conditions, ConditionTypeAvailable)
 	available := availableCondition != nil && availableCondition.Status == metav1.ConditionFalse && (time.Now().Sub(availableCondition.LastTransitionTime.Time)) > DegradedTime
-	if applied || available {
+	if appliedCondition == nil || availableCondition == nil || applied || available {
 		meta.SetStatusCondition(&conditions, metav1.Condition{
 			Type:               ConditionTypeDegraded,
 			Status:             metav1.ConditionTrue,
