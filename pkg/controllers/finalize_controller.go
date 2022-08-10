@@ -49,11 +49,12 @@ type FinalizeWorkReconciler struct {
 	Joined      bool
 }
 
-func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder) *FinalizeWorkReconciler {
+func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder, joined bool) *FinalizeWorkReconciler {
 	return &FinalizeWorkReconciler{
 		client:      hubClient,
 		spokeClient: spokeClient,
 		recorder:    recorder,
+		Joined:      joined,
 	}
 }
 

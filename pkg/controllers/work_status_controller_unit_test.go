@@ -31,14 +31,14 @@ func TestCalculateNewAppliedWork(t *testing.T) {
 		expectedStaleRes []v1alpha1.AppliedResourceMeta
 	}{
 		"AppliedWork and Work has been garbage collected; AppliedWork and Work of a resource both does not exist": {
-			r:                WorkStatusReconciler{},
+			r:                WorkStatusReconciler{Joined: true},
 			inputWork:        inputWork,
 			inputAppliedWork: inputAppliedWork,
 			expectedNewRes:   []v1alpha1.AppliedResourceMeta(nil),
 			expectedStaleRes: []v1alpha1.AppliedResourceMeta(nil),
 		},
 		"AppliedWork and Work of a resource exists; there are nothing being deleted": {
-			r:                WorkStatusReconciler{},
+			r:                WorkStatusReconciler{Joined: true},
 			inputWork:        inputWorkWithResourceIdentifier,
 			inputAppliedWork: inputAppliedWorkWithResourceIdentifier,
 			expectedNewRes: []v1alpha1.AppliedResourceMeta{
@@ -50,7 +50,7 @@ func TestCalculateNewAppliedWork(t *testing.T) {
 			expectedStaleRes: []v1alpha1.AppliedResourceMeta(nil),
 		},
 		"Work resource has been deleted, but the corresponding AppliedWork remains": {
-			r:                WorkStatusReconciler{},
+			r:                WorkStatusReconciler{Joined: true},
 			inputWork:        inputWork,
 			inputAppliedWork: inputAppliedWorkWithResourceIdentifier,
 			expectedNewRes:   []v1alpha1.AppliedResourceMeta(nil),
@@ -62,7 +62,7 @@ func TestCalculateNewAppliedWork(t *testing.T) {
 			},
 		},
 		"Work resource contains the status of a resource that does not exist within the AppliedWork resource.": {
-			r:                WorkStatusReconciler{},
+			r:                WorkStatusReconciler{Joined: true},
 			inputWork:        inputWorkWithResourceIdentifier,
 			inputAppliedWork: inputAppliedWork,
 			expectedNewRes: []v1alpha1.AppliedResourceMeta{

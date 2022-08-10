@@ -62,7 +62,7 @@ type ApplyWorkReconciler struct {
 	Joined             bool
 }
 
-func NewApplyWorkReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int) *ApplyWorkReconciler {
+func NewApplyWorkReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool) *ApplyWorkReconciler {
 	return &ApplyWorkReconciler{
 		client:             hubClient,
 		spokeDynamicClient: spokeDynamicClient,
@@ -70,6 +70,7 @@ func NewApplyWorkReconciler(hubClient client.Client, spokeDynamicClient dynamic.
 		restMapper:         restMapper,
 		recorder:           recorder,
 		concurrency:        concurrency,
+		Joined:             joined,
 	}
 }
 
