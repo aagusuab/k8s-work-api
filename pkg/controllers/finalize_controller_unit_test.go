@@ -59,7 +59,7 @@ func TestFinalizerReconcile(t *testing.T) {
 		expectedError  error
 	}{
 		"Happy Path: AppliedWork deleted, work finalizer removed": {
-			r:              FinalizeWorkReconciler{Joined: true},
+			r:              FinalizeWorkReconciler{Joined: false},
 			expectedResult: ctrl.Result{RequeueAfter: time.Minute * 5},
 			expectedError:  fmt.Errorf("finalize controller is not started yet"),
 		},
@@ -114,7 +114,9 @@ func generateTestWrapper() *TestWrapper {
 		mockReconciler: &FinalizeWorkReconciler{
 			client:      test.NewMockClient(),
 			recorder:    utils.NewFakeRecorder(2),
-			spokeClient: test.NewMockClient()},
+			spokeClient: test.NewMockClient(),
+			Joined:      true,
+		},
 		mockAppliedWork: mockAppliedWork,
 		mockWork:        mockWork,
 	}

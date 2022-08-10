@@ -90,7 +90,7 @@ func TestStop(t *testing.T) {
 	}{
 		"controller is being stopped": {
 			reconciler: WorkStatusReconciler{
-				Joined: true,
+				Joined: false,
 			},
 			ctrlResult: ctrl.Result{RequeueAfter: time.Minute * 5},
 			wantErr:    fmt.Errorf("work status controller is not started yet"),
