@@ -644,6 +644,7 @@ func TestReconcile(t *testing.T) {
 				},
 				restMapper: testMapper{},
 				recorder:   utils.NewFakeRecorder(1),
+				Joined:     true,
 			},
 			req:     req,
 			wantErr: nil,
