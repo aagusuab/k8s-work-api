@@ -64,7 +64,7 @@ func TestFinalizerReconcile(t *testing.T) {
 		expectedResult ctrl.Result
 		expectedError  error
 	}{
-		"Happy Path: AppliedWork deleted, work finalizer removed": {
+		"Controller not joined": {
 			r:              FinalizeWorkReconciler{Joined: false},
 			expectedResult: ctrl.Result{RequeueAfter: time.Minute * 5},
 			expectedError:  fmt.Errorf("finalize controller is not started yet"),

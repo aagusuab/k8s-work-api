@@ -354,7 +354,7 @@ func TestApplyUnstructured(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 				recorder:           utils.NewFakeRecorder(1),
-				Joined:             false,
+				Joined:             true,
 			},
 			workObj:        &correctObj,
 			resultSpecHash: diffSpecHash,
