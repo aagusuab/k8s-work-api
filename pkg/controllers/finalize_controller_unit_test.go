@@ -3,17 +3,17 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/work-api/pkg/utils"
 	"testing"
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/stretchr/testify/assert"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/work-api/pkg/utils"
 
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
@@ -53,6 +53,12 @@ func TestGarbageCollectAppliedWork(t *testing.T) {
 }
 
 func TestFinalizerReconcile(t *testing.T) {
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "work" + rand.String(5),
+			Name:      "work" + rand.String(5),
+		},
+	}
 	tests := map[string]struct {
 		r              FinalizeWorkReconciler
 		expectedResult ctrl.Result
@@ -66,12 +72,7 @@ func TestFinalizerReconcile(t *testing.T) {
 	}
 	for testName, tt := range tests {
 		t.Run(testName, func(t *testing.T) {
-			ctrlResult, err := tt.r.Reconcile(ctx, ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: "work" + rand.String(5),
-					Name:      "work" + rand.String(5),
-				},
-			})
+			ctrlResult, err := tt.r.Reconcile(ctx, req)
 			assert.Equalf(t, tt.expectedResult, ctrlResult, "wrong ctrlResult for testcase %s", testName)
 			assert.Equal(t, tt.expectedError, err)
 		})

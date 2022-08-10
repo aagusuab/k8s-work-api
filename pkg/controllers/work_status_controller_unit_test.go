@@ -3,14 +3,16 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
+
 	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
-	"testing"
-	"time"
 )
 
 // TestCalculateNewAppliedWork validates the calculation logic between the Work & AppliedWork resources.
