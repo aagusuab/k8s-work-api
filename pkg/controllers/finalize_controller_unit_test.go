@@ -53,26 +53,28 @@ func TestGarbageCollectAppliedWork(t *testing.T) {
 }
 
 func TestFinalizerReconcile(t *testing.T) {
-	req := ctrl.Request{
-		NamespacedName: types.NamespacedName{
-			Namespace: "work" + rand.String(5),
-			Name:      "work" + rand.String(5),
-		},
-	}
+
 	tests := map[string]struct {
 		r              FinalizeWorkReconciler
+		req            ctrl.Request
 		expectedResult ctrl.Result
 		expectedError  error
 	}{
 		"Controller not joined": {
-			r:              FinalizeWorkReconciler{Joined: false},
-			expectedResult: ctrl.Result{RequeueAfter: time.Minute * 5},
+			r: FinalizeWorkReconciler{Joined: false},
+			req: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: "work" + rand.String(5),
+					Name:      "work" + rand.String(5),
+				},
+			},
+			expectedResult: ctrl.Result{RequeueAfter: time.Second * 5},
 			expectedError:  fmt.Errorf("finalize controller is not started yet"),
 		},
 	}
 	for testName, tt := range tests {
 		t.Run(testName, func(t *testing.T) {
-			ctrlResult, err := tt.r.Reconcile(ctx, req)
+			ctrlResult, err := tt.r.Reconcile(ctx, tt.req)
 			assert.Equalf(t, tt.expectedResult, ctrlResult, "wrong ctrlResult for testcase %s", testName)
 			assert.Equal(t, tt.expectedError, err)
 		})

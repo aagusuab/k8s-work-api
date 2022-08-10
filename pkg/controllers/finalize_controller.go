@@ -64,7 +64,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if !r.Joined {
 		klog.InfoS("finalize controller is not started yet")
-		return ctrl.Result{RequeueAfter: time.Minute * 5}, fmt.Errorf("finalize controller is not started yet")
+		return ctrl.Result{RequeueAfter: time.Second * 5}, fmt.Errorf("finalize controller is not started yet")
 	}
 
 	work := &workv1alpha1.Work{}
