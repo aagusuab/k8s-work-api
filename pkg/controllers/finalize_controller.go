@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +46,7 @@ type FinalizeWorkReconciler struct {
 	client      client.Client
 	spokeClient client.Client
 	recorder    record.EventRecorder
-	Stop        bool
+	Joined      bool
 }
 
 func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder) *FinalizeWorkReconciler {
@@ -59,9 +61,9 @@ func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Clien
 func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.InfoS("Work finalize controller reconcile loop triggered.", "item", req.NamespacedName)
 
-	if r.Stop {
-		klog.InfoS("work finalize controller is being stopped, canceling reconciliation")
-		return ctrl.Result{}, nil
+	if !r.Joined {
+		klog.InfoS("finalize controller is not started yet")
+		return ctrl.Result{RequeueAfter: time.Minute * 5}, fmt.Errorf("finalize controller is not started yet")
 	}
 
 	work := &workv1alpha1.Work{}

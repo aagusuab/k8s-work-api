@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/work-api/pkg/utils"
 	"testing"
+	"time"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/stretchr/testify/assert"
@@ -57,9 +59,9 @@ func TestFinalizerReconcile(t *testing.T) {
 		expectedError  error
 	}{
 		"Happy Path: AppliedWork deleted, work finalizer removed": {
-			r:              FinalizeWorkReconciler{Stop: true},
-			expectedResult: ctrl.Result{},
-			expectedError:  nil,
+			r:              FinalizeWorkReconciler{Joined: true},
+			expectedResult: ctrl.Result{RequeueAfter: time.Minute * 5},
+			expectedError:  fmt.Errorf("finalize controller is not started yet"),
 		},
 	}
 	for testName, tt := range tests {

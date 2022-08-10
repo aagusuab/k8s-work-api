@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -9,6 +10,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"testing"
+	"time"
 )
 
 // TestCalculateNewAppliedWork validates the calculation logic between the Work & AppliedWork resources.
@@ -88,10 +90,10 @@ func TestStop(t *testing.T) {
 	}{
 		"controller is being stopped": {
 			reconciler: WorkStatusReconciler{
-				Stop: true,
+				Joined: true,
 			},
-			ctrlResult: ctrl.Result{},
-			wantErr:    nil,
+			ctrlResult: ctrl.Result{RequeueAfter: time.Minute * 5},
+			wantErr:    fmt.Errorf("work status controller is not started yet"),
 		},
 	}
 

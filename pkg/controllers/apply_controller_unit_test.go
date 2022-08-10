@@ -475,10 +475,10 @@ func TestReconcile(t *testing.T) {
 				spokeClient:        &test.MockClient{},
 				restMapper:         testMapper{},
 				recorder:           utils.NewFakeRecorder(1),
-				Stop:               true,
+				Joined:             false,
 			},
 			req:     req,
-			wantErr: nil,
+			wantErr: fmt.Errorf("work controller is not started yet"),
 			requeue: false,
 		},
 		"work cannot be retrieved, client failed due to client error": {
